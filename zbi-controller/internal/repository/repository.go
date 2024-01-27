@@ -28,7 +28,7 @@ func (repo *RepositoryService) UpdateProjectResource(ctx context.Context, projec
 
 	log := logger.GetServiceLogger(ctx, "repo.UpdateProjectResource")
 
-	var repository = vars.CONTROL_PLANE_URL + "/projects/" + project + "/resources"
+	var repository = vars.ZBI_REPOSITORY_URL + "/projects/" + project + "/resources"
 	jsonReq, _ := json.Marshal(resource)
 	req, err := http.NewRequest(http.MethodPut, repository, bytes.NewBuffer(jsonReq))
 	if err != nil {
@@ -59,7 +59,7 @@ func (repo *RepositoryService) UpdateInstanceResource(ctx context.Context, insta
 	log := logger.GetServiceLogger(ctx, "repo.UpdateInstanceResource")
 
 	//	var repository = helper.Config.GetSettings().Repository + "/projects/" + project + "/instances/" + instance + "/resources"
-	var repository = vars.CONTROL_PLANE_URL + "/instances/" + instance + "/resources"
+	var repository = vars.ZBI_REPOSITORY_URL + "/instances/" + instance + "/resources"
 
 	jsonReq, _ := json.Marshal(resource)
 	req, err := http.NewRequest(http.MethodPut, repository, bytes.NewBuffer(jsonReq))
@@ -90,7 +90,7 @@ func (repo *RepositoryService) UpdateInstanceResource(ctx context.Context, insta
 func (repo *RepositoryService) GetBlockchainInfo(ctx context.Context, blockchain string) (*model.BlockchainInfo, error) {
 
 	log := logger.GetServiceLogger(ctx, "repo.GetBlockchainInfo")
-	var repository = vars.CONTROL_PLANE_URL + "/config/blockchains/" + blockchain
+	var repository = vars.ZBI_REPOSITORY_URL + "/config/blockchains/" + blockchain
 
 	req, err := http.NewRequest(http.MethodGet, repository, nil)
 	if err != nil {
@@ -109,16 +109,48 @@ func (repo *RepositoryService) GetBlockchainInfo(ctx context.Context, blockchain
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusOK {
-		type Response struct {
-			Blockchain model.BlockchainInfo `json:"blockchain"`
-		}
-		var result Response
+		var result model.BlockchainInfo
 
 		body, err := io.ReadAll(resp.Body)
 		if err = json.Unmarshal(body, &result); err != nil {
-			return &result.Blockchain, nil
+			return nil, errors.New("unable to retrieve blockchain info")
 		}
-		return nil, errors.New("unable to retrieve blockchain info")
+		return &result, nil
+	} else {
+		message := "failed to get blockchain info"
+		log.WithFields(logrus.Fields{"status": resp.StatusCode, "detail": resp.Body}).Errorf(message)
+		return nil, errors.New(message)
+	}
+}
+
+func (repo *RepositoryService) GetBlockchainNodeInfo(ctx context.Context, blockchain, node string) (*model.BlockchainNodeInfo, error) {
+	log := logger.GetServiceLogger(ctx, "repo.GetBlockchainInfo")
+	var repository = vars.ZBI_REPOSITORY_URL + "/config/blockchains/" + blockchain + "/" + node
+
+	req, err := http.NewRequest(http.MethodGet, repository, nil)
+	if err != nil {
+		log.Errorf("failed to get blockchain info: %s", err)
+		return nil, err
+	}
+
+	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("x-internal-secret", vars.ZBI_INTERNAL_CLIENT_SECRET)
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusOK {
+		var result model.BlockchainNodeInfo
+
+		body, err := io.ReadAll(resp.Body)
+		if err = json.Unmarshal(body, &result); err != nil {
+			return nil, errors.New("unable to retrieve blockchain info")
+		}
+		return &result, nil
 	} else {
 		message := "failed to get blockchain info"
 		log.WithFields(logrus.Fields{"status": resp.StatusCode, "detail": resp.Body}).Errorf(message)
@@ -129,8 +161,9 @@ func (repo *RepositoryService) GetBlockchainInfo(ctx context.Context, blockchain
 func (repo *RepositoryService) GetPolicyInfo(ctx context.Context) (*model.PolicyInfo, error) {
 
 	log := logger.GetServiceLogger(ctx, "repo.GetPolicyInfo")
-	var repository = vars.CONTROL_PLANE_URL + "/config/policy"
+	var repository = vars.ZBI_REPOSITORY_URL + "/config/policy"
 
+	log.Debugf("connecting to %s", repository)
 	req, err := http.NewRequest(http.MethodGet, repository, nil)
 	if err != nil {
 		log.Errorf("failed to get policy info: %s", err)
@@ -148,16 +181,13 @@ func (repo *RepositoryService) GetPolicyInfo(ctx context.Context) (*model.Policy
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusOK {
-		type Response struct {
-			Policy model.PolicyInfo `json:"policy"`
-		}
-		var result Response
-
+		var result model.PolicyInfo
 		body, err := io.ReadAll(resp.Body)
 		if err = json.Unmarshal(body, &result); err != nil {
-			return &result.Policy, nil
+			log.Errorf("failed to read response - %s", err)
+			return nil, errors.New("unable to retrieve policy info")
 		}
-		return nil, errors.New("unable to retrieve policy info")
+		return &result, nil
 	} else {
 		message := "failed to get policy info"
 		log.WithFields(logrus.Fields{"status": resp.StatusCode, "detail": resp.Body}).Errorf(message)
@@ -165,10 +195,48 @@ func (repo *RepositoryService) GetPolicyInfo(ctx context.Context) (*model.Policy
 	}
 }
 
+func (repo *RepositoryService) CreateProject(ctx context.Context, project *model.Project) (*model.Project, error) {
+
+	log := logger.GetServiceLogger(ctx, "repo.GetProject")
+	var repository = vars.ZBI_REPOSITORY_URL + "/projects/"
+
+	jsonReq, _ := json.Marshal(project)
+	req, err := http.NewRequest(http.MethodPost, repository, bytes.NewBuffer(jsonReq))
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("x-internal-secret", vars.ZBI_INTERNAL_CLIENT_SECRET)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusOK {
+		var result model.Project
+
+		body, err := io.ReadAll(resp.Body)
+		if err = json.Unmarshal(body, &result); err != nil {
+			return nil, errors.New("unable to retrieve project")
+		}
+		return &result, nil
+	} else {
+		message := "failed to get project"
+		log.WithFields(logrus.Fields{"status": resp.StatusCode, "detail": resp.Body}).Errorf(message)
+		return nil, errors.New(message)
+	}
+
+}
+
 func (repo *RepositoryService) GetProject(ctx context.Context, project string) (*model.Project, error) {
 
 	log := logger.GetServiceLogger(ctx, "repo.GetProject")
-	var repository = vars.CONTROL_PLANE_URL + "/projects/" + project
+	var repository = vars.ZBI_REPOSITORY_URL + "/projects/" + project
 
 	req, err := http.NewRequest(http.MethodGet, repository, nil)
 	if err != nil {
@@ -187,16 +255,49 @@ func (repo *RepositoryService) GetProject(ctx context.Context, project string) (
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusOK {
-		type Response struct {
-			Project model.Project `json:"project"`
-		}
-		var result Response
+		var result model.Project
 
 		body, err := io.ReadAll(resp.Body)
 		if err = json.Unmarshal(body, &result); err != nil {
-			return &result.Project, nil
+			return nil, errors.New("unable to retrieve project")
 		}
-		return nil, errors.New("unable to retrieve project")
+		return &result, nil
+	} else {
+		message := "failed to get project"
+		log.WithFields(logrus.Fields{"status": resp.StatusCode, "detail": resp.Body}).Errorf(message)
+		return nil, errors.New(message)
+	}
+}
+
+func (repo *RepositoryService) GetProjects(ctx context.Context, owner string) ([]model.Project, error) {
+
+	log := logger.GetServiceLogger(ctx, "repo.GetProject")
+	var repository = vars.ZBI_REPOSITORY_URL + "/projects"
+
+	req, err := http.NewRequest(http.MethodGet, repository, nil)
+	if err != nil {
+		log.Errorf("failed to get project: %s", err)
+		return nil, err
+	}
+
+	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("x-internal-secret", vars.ZBI_INTERNAL_CLIENT_SECRET)
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusOK {
+		var result []model.Project
+
+		body, err := io.ReadAll(resp.Body)
+		if err = json.Unmarshal(body, &result); err != nil {
+			return nil, errors.New("unable to retrieve project")
+		}
+		return result, nil
 	} else {
 		message := "failed to get project"
 		log.WithFields(logrus.Fields{"status": resp.StatusCode, "detail": resp.Body}).Errorf(message)
@@ -207,7 +308,7 @@ func (repo *RepositoryService) GetProject(ctx context.Context, project string) (
 func (repo *RepositoryService) GetInstance(ctx context.Context, instance string) (*model.Instance, error) {
 
 	log := logger.GetServiceLogger(ctx, "repo.GetInstance")
-	var repository = vars.CONTROL_PLANE_URL + "/instances/" + instance
+	var repository = vars.ZBI_REPOSITORY_URL + "/instances/" + instance
 
 	req, err := http.NewRequest(http.MethodGet, repository, nil)
 	if err != nil {
@@ -226,16 +327,13 @@ func (repo *RepositoryService) GetInstance(ctx context.Context, instance string)
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusOK {
-		type Response struct {
-			Instance model.Instance `json:"instance"`
-		}
-		var result Response
+		var result model.Instance
 
 		body, err := io.ReadAll(resp.Body)
 		if err = json.Unmarshal(body, &result); err != nil {
-			return &result.Instance, nil
+			return nil, errors.New("unable to retrieve instance")
 		}
-		return nil, errors.New("unable to retrieve instance")
+		return &result, nil
 	} else {
 		message := "failed to get instance"
 		log.WithFields(logrus.Fields{"status": resp.StatusCode, "detail": resp.Body}).Errorf(message)
@@ -243,14 +341,14 @@ func (repo *RepositoryService) GetInstance(ctx context.Context, instance string)
 	}
 }
 
-func (repo *RepositoryService) GetInstanceResources(ctx context.Context, instance string) (*model.KubernetesResources, error) {
+func (repo *RepositoryService) GetInstances(ctx context.Context, project string) ([]model.Instance, error) {
 
-	log := logger.GetServiceLogger(ctx, "repo.GetInstanceResources")
-	var repository = vars.CONTROL_PLANE_URL + "/instances/" + instance + "/resources"
+	log := logger.GetServiceLogger(ctx, "repo.GetInstance")
+	var repository = vars.ZBI_REPOSITORY_URL + "/projects/" + project + "/instances"
 
 	req, err := http.NewRequest(http.MethodGet, repository, nil)
 	if err != nil {
-		log.Errorf("failed to get instance resource: %s", err)
+		log.Errorf("failed to get instance: %s", err)
 		return nil, err
 	}
 
@@ -265,19 +363,154 @@ func (repo *RepositoryService) GetInstanceResources(ctx context.Context, instanc
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusOK {
-		type Response struct {
-			Resources model.KubernetesResources `json:"resources"`
-		}
-		var result Response
+		var result []model.Instance
 
 		body, err := io.ReadAll(resp.Body)
 		if err = json.Unmarshal(body, &result); err != nil {
-			return &result.Resources, nil
+			return nil, errors.New("unable to retrieve instance")
 		}
-		return nil, errors.New("unable to retrieve instance resources")
+		return result, nil
+	} else {
+		message := "failed to get instance"
+		log.WithFields(logrus.Fields{"status": resp.StatusCode, "detail": resp.Body}).Errorf(message)
+		return nil, errors.New(message)
+	}
+}
+
+func (repo *RepositoryService) CreateInstance(ctx context.Context, projectId, owner string, request *model.InstanceRequest) (*model.Instance, error) {
+
+	log := logger.GetServiceLogger(ctx, "repo.GetProject")
+	var repository = vars.ZBI_REPOSITORY_URL + "/projects/" + projectId + "/instances"
+
+	jsonReq, _ := json.Marshal(request)
+	req, err := http.NewRequest(http.MethodPost, repository, bytes.NewBuffer(jsonReq))
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("x-internal-secret", vars.ZBI_INTERNAL_CLIENT_SECRET)
+	req.Header.Add("x-owner-id", owner)
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusOK {
+		var result model.Instance
+
+		body, err := io.ReadAll(resp.Body)
+		if err = json.Unmarshal(body, &result); err != nil {
+			return nil, errors.New("unable to create instance")
+		}
+		return &result, nil
+	} else {
+		message := "failed to get instance"
+		log.WithFields(logrus.Fields{"status": resp.StatusCode, "detail": resp.Body}).Errorf(message)
+		return nil, errors.New(message)
+	}
+}
+
+func (repo *RepositoryService) UpdateInstance(ctx context.Context, instanceId string, request *model.InstanceRequest) (*model.Instance, error) {
+	log := logger.GetServiceLogger(ctx, "repo.GetProject")
+	var repository = vars.ZBI_REPOSITORY_URL + "/instances/" + instanceId
+
+	jsonReq, _ := json.Marshal(request)
+	req, err := http.NewRequest(http.MethodPut, repository, bytes.NewBuffer(jsonReq))
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("x-internal-secret", vars.ZBI_INTERNAL_CLIENT_SECRET)
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusOK {
+		var result model.Instance
+
+		body, err := io.ReadAll(resp.Body)
+		if err = json.Unmarshal(body, &result); err != nil {
+			return nil, errors.New("unable to retrieve instance")
+		}
+		return &result, nil
+	} else {
+		message := "failed to get instance"
+		log.WithFields(logrus.Fields{"status": resp.StatusCode, "detail": resp.Body}).Errorf(message)
+		return nil, errors.New(message)
+	}
+}
+
+func (repo *RepositoryService) AddProjectActivity(ctx context.Context, project string, op model.EventAction) error {
+
+	log := logger.GetServiceLogger(ctx, "repo.AddProjectActivity")
+	var repository = vars.ZBI_REPOSITORY_URL + "/projects/" + project + "/activity"
+
+	activity := make(map[string]interface{})
+	activity["op"] = op
+
+	jsonReq, _ := json.Marshal(activity)
+	req, err := http.NewRequest(http.MethodPost, repository, bytes.NewBuffer(jsonReq))
+	if err != nil {
+		return err
+	}
+
+	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("x-internal-secret", vars.ZBI_INTERNAL_CLIENT_SECRET)
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusOK {
+		return nil
 	} else {
 		message := "failed to get instance resources"
 		log.WithFields(logrus.Fields{"status": resp.StatusCode, "detail": resp.Body}).Errorf(message)
-		return nil, errors.New(message)
+		return errors.New(message)
+	}
+}
+
+func (repo *RepositoryService) AddInstanceActivity(ctx context.Context, instance string, op model.EventAction) error {
+
+	log := logger.GetServiceLogger(ctx, "repo.AddInstanceActivity")
+	var repository = vars.ZBI_REPOSITORY_URL + "/instances/" + instance + "/activity"
+
+	activity := make(map[string]interface{})
+	activity["op"] = op
+
+	jsonReq, _ := json.Marshal(activity)
+	req, err := http.NewRequest(http.MethodPost, repository, bytes.NewBuffer(jsonReq))
+	if err != nil {
+		return err
+	}
+
+	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("x-internal-secret", vars.ZBI_INTERNAL_CLIENT_SECRET)
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusOK {
+		return nil
+	} else {
+		message := "failed to get instance resources"
+		log.WithFields(logrus.Fields{"status": resp.StatusCode, "detail": resp.Body}).Errorf(message)
+		return errors.New(message)
 	}
 }
