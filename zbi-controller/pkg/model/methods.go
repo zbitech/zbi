@@ -1,14 +1,14 @@
 package model
 
-func (project *Project) GetInstanceType(name string) InstanceType {
-	for _, entry := range project.Instances {
-		if entry.Name == name {
-			return entry.InstanceType
-		}
-	}
+// func (project *Project) GetInstanceType(name string) InstanceType {
+// 	for _, entry := range project.Instances {
+// 		if entry.Name == name {
+// 			return entry.InstanceType
+// 		}
+// 	}
 
-	return ""
-}
+// 	return ""
+// }
 
 func appendResource(resources []KubernetesResource, newResource KubernetesResource) []KubernetesResource {
 
@@ -24,148 +24,202 @@ func appendResource(resources []KubernetesResource, newResource KubernetesResour
 	return append(resources, newResource)
 }
 
-func (instance *Instance) GetResource(resourceName string, resourceType ResourceObjectType) *KubernetesResource {
-
-	var resources []KubernetesResource
-	if resourceType == ResourceVolumeSnapshot {
-		resources = instance.Resources.Snapshots
-	} else if resourceType == ResourceSnapshotSchedule {
-		resources = instance.Resources.Schedules
-	} else {
-		resources = instance.Resources.Resources
-	}
-
-	for _, resource := range resources {
-		if resource.Name == resourceName && resource.Type == resourceType {
-			return &resource
-		}
-	}
-
-	return nil
+func (instance *Instance) GetResourceArray() []KubernetesResource {
+	return CreateResourceArray(instance.Resources)
 }
 
-func (instance *Instance) GetResourceByName(resourceName string) *KubernetesResource {
+func CreateResourceArray(resources *KubernetesResources) []KubernetesResource {
+	var array []KubernetesResource
 
-	for _, resource := range instance.Resources.Resources {
-		if resource.Name == resourceName {
-			return &resource
-		}
+	if resources.Configmap != nil {
+		array = append(array, *resources.Configmap)
 	}
 
-	for _, resource := range instance.Resources.Snapshots {
-		if resource.Name == resourceName {
-			return &resource
-		}
+	if resources.Deployment != nil {
+		array = append(array, *resources.Deployment)
 	}
 
-	for _, resource := range instance.Resources.Schedules {
-		if resource.Name == resourceName {
-			return &resource
-		}
+	if resources.Httpproxy != nil {
+		array = append(array, *resources.Httpproxy)
 	}
 
-	return nil
+	if resources.Namespace != nil {
+		array = append(array, *resources.Namespace)
+	}
+
+	if resources.Persistentvolumeclaim != nil {
+		array = append(array, *resources.Persistentvolumeclaim)
+	}
+
+	if resources.Secret != nil {
+		array = append(array, *resources.Secret)
+	}
+
+	if resources.Service != nil {
+		array = append(array, *resources.Service)
+	}
+
+	if resources.Snapshotschedule != nil {
+		array = append(array, *resources.Snapshotschedule)
+	}
+
+	if resources.Volumesnapshot != nil {
+		array = append(array, resources.Volumesnapshot...)
+	}
+
+	if resources.Httpproxy != nil {
+		array = append(array, *resources.Httpproxy)
+	}
+
+	return array
 }
 
-func (instance *Instance) GetResourceByType(resourceType ResourceObjectType) *KubernetesResource {
+// func (instance *Instance) GetResource(resourceName string, resourceType ResourceObjectType) *KubernetesResource {
 
-	var resources []KubernetesResource
-	if resourceType == ResourceVolumeSnapshot {
-		resources = instance.Resources.Snapshots
-	} else if resourceType == ResourceSnapshotSchedule {
-		resources = instance.Resources.Schedules
-	} else {
-		resources = instance.Resources.Resources
-	}
+// 	var resources []KubernetesResource
+// 	if resourceType == ResourceVolumeSnapshot {
+// 		resources = instance.Resources.Snapshots
+// 	} else if resourceType == ResourceSnapshotSchedule {
+// 		resources = instance.Resources.Schedules
+// 	} else {
+// 		resources = instance.Resources.Resources
+// 	}
 
-	for _, resource := range resources {
-		if resource.Type == resourceType {
-			return &resource
-		}
-	}
+// 	for _, resource := range resources {
+// 		if resource.Name == resourceName && resource.Type == resourceType {
+// 			return &resource
+// 		}
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
-func (instance *Instance) AddResource(resource KubernetesResource) {
+// func (instance *Instance) GetResourceByName(resourceName string) *KubernetesResource {
 
-	if resource.Type == ResourceVolumeSnapshot {
-		instance.Resources.Snapshots = append(instance.Resources.Snapshots, resource)
-	} else if resource.Type == ResourceSnapshotSchedule {
-		instance.Resources.Schedules = append(instance.Resources.Schedules, resource)
-	} else {
-		instance.Resources.Resources = append(instance.Resources.Resources, resource)
-	}
-}
+// 	for _, resource := range instance.Resources.Resources {
+// 		if resource.Name == resourceName {
+// 			return &resource
+// 		}
+// 	}
 
-func (instance *Instance) AddResources(resources ...KubernetesResource) {
-	for _, resource := range resources {
-		instance.AddResource(resource)
-	}
-}
+// 	for _, resource := range instance.Resources.Snapshots {
+// 		if resource.Name == resourceName {
+// 			return &resource
+// 		}
+// 	}
 
-func (instance *Instance) HasResources() bool {
-	return instance.Resources != nil && (len(instance.Resources.Resources) > 0 ||
-		len(instance.Resources.Snapshots) > 0 ||
-		len(instance.Resources.Schedules) > 0)
-}
+// 	for _, resource := range instance.Resources.Schedules {
+// 		if resource.Name == resourceName {
+// 			return &resource
+// 		}
+// 	}
 
-func (instance *Instance) GetResources() []KubernetesResource {
-	var resources = make([]KubernetesResource, 0)
+// 	return nil
+// }
 
-	resources = append(resources, instance.Resources.Resources...)
-	resources = append(resources, instance.Resources.Snapshots...)
-	resources = append(resources, instance.Resources.Schedules...)
+// func (instance *Instance) GetResourceByType(resourceType ResourceObjectType) *KubernetesResource {
 
-	return resources
-}
+// 	var resources []KubernetesResource
+// 	if resourceType == ResourceVolumeSnapshot {
+// 		resources = instance.Resources.Snapshots
+// 	} else if resourceType == ResourceSnapshotSchedule {
+// 		resources = instance.Resources.Schedules
+// 	} else {
+// 		resources = instance.Resources.Resources
+// 	}
+
+// 	for _, resource := range resources {
+// 		if resource.Type == resourceType {
+// 			return &resource
+// 		}
+// 	}
+
+// 	return nil
+// }
+
+// func (instance *Instance) AddResource(resource KubernetesResource) {
+
+// 	if resource.Type == ResourceVolumeSnapshot {
+// 		instance.Resources.Snapshots = append(instance.Resources.Snapshots, resource)
+// 	} else if resource.Type == ResourceSnapshotSchedule {
+// 		instance.Resources.Schedules = append(instance.Resources.Schedules, resource)
+// 	} else {
+// 		instance.Resources.Resources = append(instance.Resources.Resources, resource)
+// 	}
+// }
+
+// func (instance *Instance) AddResources(resources ...KubernetesResource) {
+// 	for _, resource := range resources {
+// 		instance.AddResource(resource)
+// 	}
+// }
+
+// func (instance *Instance) HasResources() bool {
+// 	return instance.Resources != nil && (len(instance.Resources.Resources) > 0 ||
+// 		len(instance.Resources.Snapshots) > 0 ||
+// 		len(instance.Resources.Schedules) > 0)
+// }
+
+// func (instance *Instance) GetResources() []KubernetesResource {
+// 	var resources = make([]KubernetesResource, 0)
+
+// 	resources = append(resources, instance.Resources.Resources...)
+// 	resources = append(resources, instance.Resources.Snapshots...)
+// 	resources = append(resources, instance.Resources.Schedules...)
+
+// 	return resources
+// }
 
 func (project *Project) GetNamespace() string {
 	return project.Name
 }
 
-func (project *Project) GetResource(resourceName string, resourceType ResourceObjectType) *KubernetesResource {
-	for _, resource := range project.Resources {
-		if resource.Name == resourceName && resource.Type == resourceType {
-			return &resource
-		}
-	}
-
-	return nil
+func (project *Project) GetResourceArray() []KubernetesResource {
+	return CreateResourceArray(project.Resources)
 }
 
-func (project *Project) GetResourceByName(resourceName string) *KubernetesResource {
-	for _, resource := range project.Resources {
-		if resource.Name == resourceName {
-			return &resource
-		}
-	}
+// func (project *Project) GetResource(resourceName string, resourceType ResourceObjectType) *KubernetesResource {
+// 	for _, resource := range project.Resources {
+// 		if resource.Name == resourceName && resource.Type == resourceType {
+// 			return &resource
+// 		}
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
-func (project *Project) GetResourceByType(resourceType ResourceObjectType) *KubernetesResource {
-	for _, resource := range project.Resources {
-		if resource.Type == resourceType {
-			return &resource
-		}
-	}
+// func (project *Project) GetResourceByName(resourceName string) *KubernetesResource {
+// 	for _, resource := range project.Resources {
+// 		if resource.Name == resourceName {
+// 			return &resource
+// 		}
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
-func (project *Project) AddResource(resource KubernetesResource) {
-	if project.Resources == nil {
-		project.Resources = make([]KubernetesResource, 0)
-	}
-	project.Resources = appendResource(project.Resources, resource)
-}
+// func (project *Project) GetResourceByType(resourceType ResourceObjectType) *KubernetesResource {
+// 	for _, resource := range project.Resources {
+// 		if resource.Type == resourceType {
+// 			return &resource
+// 		}
+// 	}
 
-func (project *Project) AddResources(resources ...KubernetesResource) {
-	for _, resource := range resources {
-		project.AddResource(resource)
-	}
-}
+// 	return nil
+// }
+
+// func (project *Project) AddResource(resource KubernetesResource) {
+// 	if project.Resources == nil {
+// 		project.Resources = make([]KubernetesResource, 0)
+// 	}
+// 	project.Resources = appendResource(project.Resources, resource)
+// }
+
+// func (project *Project) AddResources(resources ...KubernetesResource) {
+// 	for _, resource := range resources {
+// 		project.AddResource(resource)
+// 	}
+// }
 
 func (node *BlockchainNodeInfo) GetImage(name string) *ImageInfo {
 	for _, image := range node.Images {
@@ -195,3 +249,11 @@ func (node *BlockchainNodeInfo) GetPort(name string) int32 {
 
 	return port
 }
+
+// func ResourceObjectTypeToString(rtype ResourceObjectType) string {
+
+// }
+
+// func StringToResourceObjectType(rtype string) ResourceObjectType {
+
+// }

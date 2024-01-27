@@ -23,29 +23,13 @@ const (
 	EventActionCreate         EventAction = "create"
 	EventActionDelete         EventAction = "delete"
 	EventActionUpdate         EventAction = "update"
-	EventActionResource       EventAction = "resource"
-	EventActionDeactivate     EventAction = "deactivate"
-	EventActionReactivate     EventAction = "reactivate"
 	EventActionRepair         EventAction = "repair"
 	EventActionSnapshot       EventAction = "snapshot"
 	EventActionSchedule       EventAction = "schedule"
-	EventActionPurge          EventAction = "purge"
 	EventActionStopInstance   EventAction = "stop"
 	EventActionStartInstance  EventAction = "start"
 	EventActionRotate         EventAction = "rotate"
-	EventActionUpdatePolicy   EventAction = "updatepolicy"
-	EventActionAddMember      EventAction = "addmember"
-	EventActionRemoveMember   EventAction = "removemember"
-	EventActionUpdateMember   EventAction = "updatemember"
-	EventActionRegister       EventAction = "register"
-	EventActionCreateKey      EventAction = "createkey"
-	EventActionDeleteKey      EventAction = "deletekey"
-	EventActionChangePassword EventAction = "changepassword"
-	EventActionChangeEmail    EventAction = "changeemail"
-	EventActionUpdateProfile  EventAction = "updateprofile"
-	EventActionAcceptInvite   EventAction = "acceptinvite"
-	EventActionRejectInvite   EventAction = "rejectinvite"
-	EventActionExpireInvite   EventAction = "expireinvite"
+	EventActionDeleteResource EventAction = "delete_resource"
 )
 
 type NetworkType string
@@ -99,6 +83,6 @@ const (
 type DataVolumeType string
 
 const (
-	EphemeralDataVolume  DataVolumeType = "eph"
+	EphemeralDataVolume  DataVolumeType = "ephemeral"
 	PersistentDataVolume DataVolumeType = "pvc"
 )

@@ -35,44 +35,85 @@ type SnapshotScheduleRequest struct {
 }
 
 type Project struct {
-	Id        string               `json:"id"`
-	Name      string               `json:"name"`
-	Owner     string               `json:"owner"`
-	Instances []Instance           `json:"instances"`
-	Resources []KubernetesResource `json:"resources,omitempty"`
-	//	Network   NetworkType          `json:"network"`
+	Id          string               `json:"id"`
+	Name        string               `json:"name"`
+	Owner       string               `json:"owner"`
+	Blockchain  string               `json:"blockchain"`
+	Network     string               `json:"network"`
+	Status      string               `json:"status"`
+	State       string               `json:"state"`
+	Description string               `json:"description"`
+	Resources   *KubernetesResources `json:"resources,omitempty"`
+	CreatedAt   *time.Time           `json:"createdAt,omitempty"`
+	UpdatedAt   *time.Time           `json:"updatedAt,omitempty"`
 }
 
 type Instance struct {
 	Id           string               `json:"id"`
 	Name         string               `json:"name"`
+	Type         InstanceType         `json:"type"`
+	Project      *Project             `json:"project"`
+	Status       string               `json:"status"`
+	State        string               `json:"state"`
 	InstanceType InstanceType         `json:"instanceType"`
 	Owner        string               `json:"owner"`
 	Network      NetworkType          `json:"network"`
 	Request      *ResourceRequest     `json:"request"`
 	Resources    *KubernetesResources `json:"resources,omitempty"`
+	CreatedAt    *time.Time           `json:"createdAt,omitempty"`
+	UpdatedAt    *time.Time           `json:"updatedAt,omitempty"`
 }
 
 type ResourceRequest struct {
-	VolumeType          DataVolumeType         `json:"volumeType,omitempty"`
-	VolumeSize          string                 `json:"volumeSize,omitempty"`
-	VolumeSourceType    DataSourceType         `json:"volumeSourceType,omitempty"`
-	VolumeSourceName    string                 `json:"volumeSourceName,omitempty"`
-	VolumeSourceProject string                 `json:"volumeSourceProject,omitempty"`
-	Cpu                 string                 `json:"cpu,omitempty"`
-	Memory              string                 `json:"memory,omitempty"`
-	Peers               []string               `json:"peers,omitempty"`
-	Properties          map[string]interface{} `json:"properties,omitempty"`
+	Cpu        string                 `json:"cpu"`
+	Memory     string                 `json:"memory"`
+	Peers      []string               `json:"peers"`
+	Properties map[string]interface{} `json:"properties"`
+	Volume     struct {
+		Type   DataVolumeType `json:"type"`
+		Size   string         `json:"size"`
+		Source struct {
+			Type DataSourceType `json:"type"`
+			Ref  string         `json:"ref"`
+		}
+	}
+}
+
+type InstanceRequest struct {
+	Name        string                 `json:"name"`
+	Type        InstanceType           `json:"type"`
+	Description string                 `json:"description"`
+	Peers       []string               `json:"peers"`
+	Properties  map[string]interface{} `json:"properties"`
+	Volume      struct {
+		Type   DataVolumeType `json:"type"`
+		Size   string         `json:"size"`
+		Source DataSourceType `json:"source"`
+		Ref    string         `json:"ref"`
+	}
 }
 
 type KubernetesResources struct {
-	Resources []KubernetesResource `json:"resources"`
-	Snapshots []KubernetesResource `json:"snapshots"`
-	Schedules []KubernetesResource `json:"schedule"`
+	Namespace             *KubernetesResource  `json:"namespace,omitempty"`
+	Configmap             *KubernetesResource  `json:"configmap,omitempty"`
+	Secret                *KubernetesResource  `json:"secret,omitempty"`
+	Persistentvolumeclaim *KubernetesResource  `json:"persistentvolumeclaim,omitempty"`
+	Deployment            *KubernetesResource  `json:"deployment,omitempty"`
+	Service               *KubernetesResource  `json:"service,omitempty"`
+	Httpproxy             *KubernetesResource  `json:"httpproxy,omitempty"`
+	Volumesnapshot        []KubernetesResource `json:"volumesnapshot,omitempty"`
+	Snapshotschedule      *KubernetesResource  `json:"snapshotschedule,omitempty"`
+}
+
+type Activity struct {
+	Operation string     `json:"operation"`
+	Success   bool       `json:"success"`
+	Completed bool       `json:"completed"`
+	CreatedAt *time.Time `json:"createdAt,omitempty"`
+	UpdatedAt *time.Time `json:"updatedAt,omitempty"`
 }
 
 type KubernetesResource struct {
-	//	Id         string                 `json:"id"`
 	Name       string                 `json:"name,omitempty"`
 	Namespace  string                 `json:"namespace,omitempty"`
 	Type       ResourceObjectType     `json:"type,omitempty"`
@@ -80,6 +121,8 @@ type KubernetesResource struct {
 	Created    *time.Time             `json:"created,omitempty"`
 	Updated    *time.Time             `json:"updated,omitempty"`
 	Properties map[string]interface{} `json:"properties,omitempty"`
+	CreatedAt  time.Time              `json:"createdAt,omitempty"`
+	UpdatedAt  time.Time              `json:"updatedAt,omitempty"`
 }
 
 type Metadata struct {
@@ -157,11 +200,10 @@ type Ingress struct {
 }
 
 type BlockchainInfo struct {
-	Name            string               `json:"name"`
-	Networks        []string             `json:"networks"`
-	Nodes           []BlockchainNodeInfo `json:"nodes"`
-	AppTemplate     string               `json:"appTemplate"`
-	ProjectTemplate string               `json:"projectTemplate"`
+	Name      string               `json:"name"`
+	Networks  []string             `json:"networks"`
+	Nodes     []BlockchainNodeInfo `json:"nodes"`
+	Templates map[string]string    `json:"templates"`
 }
 
 type ImageInfo struct {
@@ -180,7 +222,6 @@ type BlockchainNodeInfo struct {
 	Type       string                 `json:"type"`
 	Endpoints  map[string][]string    `json:"endpoints"`
 	Ports      map[string]int32       `json:"ports"`
-	Templates  string                 `json:"templates"`
 	Images     []ImageInfo            `json:"images"`
 	Settings   map[string][]KVPair    `json:"settings"`
 	Properties map[string]interface{} `json:"properties"`
@@ -192,7 +233,6 @@ type PolicyInfo struct {
 	DomainName            string `json:"domainName"`
 	CertificateName       string `json:"certificateName"`
 	ServiceAccount        string `json:"serviceAccount"`
-	EnableRepository      bool   `json:"enableRepository"`
 	InformerResync        int32  `json:"informerResync"`
 	EnableMonitor         bool   `json:"enableMonitor"`
 	RequireAuthentication bool   `json:"requireAuthentication"`
