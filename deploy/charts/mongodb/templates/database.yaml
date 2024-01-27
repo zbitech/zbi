@@ -1,0 +1,49 @@
+{{- if .Values.database.enabled -}}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ .Values.database.name }}-zbi-password
+type: Opaque
+stringData:
+  password: {{ .Values.database.password}}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ .Values.database.name }}-admin-password
+type: Opaque
+stringData:
+  password: {{ .Values.database.password}}
+---
+apiVersion: mongodbcommunity.mongodb.com/v1
+kind: MongoDBCommunity
+metadata:
+  name: {{ .Values.database.name  }}
+spec:
+  members: {{.Values.database.members}}
+  type: {{ .Values.database.architecture }}
+  version: {{ .Values.database.version }}
+  security:
+    authentication:
+      modes: ["SCRAM"]
+  users:
+    - name: admin
+      db: admin
+      passwordSecretRef:
+        name: {{ .Values.database.name  }}-admin-password
+      roles:
+        - name: clusterAdmin
+          db: admin
+        - name: userAdminAnyDatabase
+          db: admin
+      scramCredentialsSecretName: admin
+    - name: zbi
+      db: zbi
+      passwordSecretRef:
+        name: {{ .Values.database.name  }}-zbi-password
+        key: password
+      roles:
+        - name: readWrite
+          db: zbi
+      scramCredentialsSecretName: zbi
+{{- end }}

@@ -1,0 +1,57 @@
+{{- if .Values.blockchain.ingress.enabled }}
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: {{ include "zbi.fullname" . }}-blockchain-proxy
+  labels:
+    {{ include "zbi.labels" . | nindent 4 }}
+  {{- if .Values.externalDNS.enabled }}
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: {{ include "zbi-blockchain.domain" . }}
+  {{- end }}
+spec:
+  virtualhost:
+    fqdn: {{ include "zbi-blockchain.domain" . }}
+{{- if .Values.blockchain.ingress.tls.enabled }}
+    tls:
+      secretName: {{ include "zbi.fullname" . }}-blockchain
+{{- end }}
+  routes:
+    - conditions:
+        - prefix: /
+      services:
+        - name: {{ include "zbi-controller.fullname" .}}-svc
+          port: {{ .Values.controller.service.port }}
+      pathRewritePolicy:
+        replacePrefix:
+          - replacement: /status
+---
+{{- if .Values.blockchain.ingress.tls.enabled }}
+apiVersion: projectcontour.io/v1
+kind: TLSCertificateDelegation
+metadata:
+  name: {{ include "zbi.fullname" .}}-blockchain
+  labels:
+    {{ include "zbi.labels" . | nindent 4 }}
+spec:
+  delegations:
+    - secretName: {{ include "zbi.fullname" . }}-blockchain
+      targetNamespaces:
+        - '*'
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ include "zbi.fullname" . }}-blockchain
+spec:
+  commonName: "{{ include "zbi-blockchain.domain" . }}"
+  dnsNames: ["{{ include "zbi-blockchain.domain" . }}"]
+  duration: {{ .Values.certificate.duration }}
+  renewBefore: {{ .Values.certificate.renewBefore }}
+  issuerRef:
+    kind: {{ .Values.certificate.issuer.kind }}
+    name: {{ .Values.certificate.issuer.name }}
+  secretName: {{ include "zbi.fullname" . }}-blockchain
+---
+{{- end }}
+{{- end }}

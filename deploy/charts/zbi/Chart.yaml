@@ -1,0 +1,7 @@
+apiVersion: v2
+name: zbi
+description: A Helm chart for Zcash Blockchain Infrastructure
+
+type: application
+version: 0.1.0
+appVersion: "0.0.1"

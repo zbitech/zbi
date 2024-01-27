@@ -1,0 +1,37 @@
+domain: zbitech.io
+prefix: ""
+nameOverride: ""
+fullnameOverride: ""
+
+ingressClassName: contour
+
+certificate:
+  duration: 8760h
+  renewBefore: 730h
+  issuer:
+    kind: ClusterIssuer
+    name: cert-issuer
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+rbac:
+  create: true
+
+externalDNS:
+  enabled: true
+
+database:
+  enabled: true
+  name: zbi-mongodb
+  members: 1
+  architecture: ReplicaSet
+  version: "6.0.8"
+  password: password
+
+mongoexpress:
+  enabled: true
+
+

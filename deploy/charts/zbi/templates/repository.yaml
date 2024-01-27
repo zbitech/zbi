@@ -1,0 +1,116 @@
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "zbi-db.fullname" . }}
+  labels:
+    {{- include "zbi.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.database.autoscaling.enabled }}
+  replicas: {{ .Values.database.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "zbi-db.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.database.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "zbi-db.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.database.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "zbi.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.database.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.database.securityContext | nindent 12 }}
+          image: "{{ .Values.database.image.repository }}:{{ .Values.database.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.database.image.pullPolicy }}
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: MONGO_DB_CONNECTION_STRING
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.database.connectionString.secretName }}
+                  key: {{ .Values.database.connectionString.secretKey }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.database.service.port }}
+              protocol: TCP
+          # livenessProbe:
+          #   httpGet:
+          #     path: /
+          #     port: http
+          # readinessProbe:
+          #   httpGet:
+          #     path: /
+          #     port: http
+          resources:
+            {{- toYaml .Values.database.resources | nindent 12 }}
+      {{- with .Values.database.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.database.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.database.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "zbi-db.fullname" . }}-svc
+  labels:
+    {{- include "zbi.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.database.service.type }}
+  ports:
+    - port: {{ .Values.database.service.port }}
+      targetPort: {{ .Values.database.service.port }}
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "zbi-db.selectorLabels" . | nindent 4 }}
+---
+{{- if .Values.database.autoscaling.enabled }}
+apiVersion: autoscaling/v2beta1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "zbi-db.fullname" . }}
+  labels:
+    {{- include "zbi.labels" . | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "zbi-db.fullname" . }}
+  minReplicas: {{ .Values.database.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.database.autoscaling.maxReplicas }}
+  metrics:
+    {{- if .Values.database.autoscaling.targetCPUUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: cpu
+        targetAverageUtilization: {{ .Values.database.autoscaling.targetCPUUtilizationPercentage }}
+    {{- end }}
+    {{- if .Values.database.autoscaling.targetMemoryUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: memory
+        targetAverageUtilization: {{ .Values.database.autoscaling.targetMemoryUtilizationPercentage }}
+    {{- end }}
+{{- end }}
+

@@ -1,0 +1,26 @@
+{
+    "envoyConfig": {
+      "image": "envoyproxy/envoy:v1.20-latest",
+      "command": [
+        "/usr/local/bin/envoy",
+        "-c",
+        "/etc/envoy/envoy.yaml",
+        "--log-level",
+        "info"
+      ],
+      "timeout": 2,
+      "accessAuthorization": false,
+      "authServerURL": "control-plane-svc.zbi.svc.cluster.local",
+      "authServerPort": 50051,
+      "authenticationEnabled": true
+    },
+    "storageClass": "csi-sc",
+    "snapshotClass": "csi-snapclass",
+    "domainName": "api.zbitech.local",
+    "certificateName": "zbi-certs-controller",
+    "serviceAccount": "default",
+    "enableRepository": true,
+    "informerResync": 60,
+    "enableMonitor": true,
+    "requireAuthentication": false
+  }

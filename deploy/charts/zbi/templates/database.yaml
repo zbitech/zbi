@@ -1,0 +1,59 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "zbi.fullname" . }}-cm-conf
+  labels:
+    {{- include "zbi.labels" . | nindent 4 }}
+data:
+{{ tpl (.Files.Glob "zbi-conf/*").AsConfig . | indent 2 }}
+{{ tpl (.Files.Glob "scripts/*").AsConfig . | indent 2 }}
+{{ (.Files.Glob "zbi-templates/*").AsConfig | indent 2 }}
+  users.json: |-
+    {{ .Values.database.data.users | toJson | indent 4 }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "zbi.fullname" . }}-postinstall
+spec:
+  template:
+    metadata:
+      name: {{ include "zbi.fullname" . }}-postinstall
+    spec:
+      restartPolicy: Never
+      volumes:
+      - name: zbi-cm-conf
+        configMap:
+          name: {{ include "zbi.fullname" . }}-cm-conf
+          items:
+          - key: users.json
+            path: data/users.json
+          - key: blockchains.json
+            path: data/blockchains.json
+          - key: policies.json
+            path: data/policies.json
+          - key: init-zbi.js
+            path: scripts/init-zbi.js
+          - key: app_templates.tmpl
+            path: templates/blockchain/zcash/app_templates.tmpl
+          - key: project_templates.tmpl
+            path: templates/blockchain/zcash/project_templates.tmpl
+          - key: zcash_templates.tmpl
+            path: templates/blockchain/zcash/types/zcash_templates.tmpl
+          - key: lwd_templates.tmpl
+            path: templates/blockchain/zcash/types/lwd_templates.tmpl
+      containers:
+      - name: mongosh
+        image: rtsp/mongosh:latest
+        imagePullPolicy: IfNotPresent
+        command: ["mongosh", "$(connectionString)", "/etc/zbi/scripts/init-zbi.js"]
+        env:
+        - name: connectionString
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.database.connectionString.secretName }}
+              key: {{ .Values.database.connectionString.secretKey }}
+        volumeMounts:
+        - name: zbi-cm-conf
+          mountPath: /etc/zbi
+          readOnly: true

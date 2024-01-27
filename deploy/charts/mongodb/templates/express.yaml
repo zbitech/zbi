@@ -1,0 +1,82 @@
+{{- if .Values.mongoexpress.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "mongodb.fullname" . }}-express
+  labels:
+    app: {{ include "mongodb.fullname" . }}-express
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ include "mongodb.fullname" . }}-express
+  template:
+    metadata:
+      labels:
+        app: {{ include "mongodb.fullname" . }}-express
+    spec:
+      containers:
+        - name: mongo-express
+          image: mongo-express
+          ports:
+          - containerPort: 8081
+          env:
+            - name: ME_CONFIG_MONGODB_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "mongodb.zbi.credentials" . }}
+                  key: connectionString.standard
+            - name: ME_CONFIG_BASICAUTH_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "mongodb.zbi.credentials" . }}
+                  key: username
+            - name: ME_CONFIG_BASICAUTH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "mongodb.zbi.credentials" . }}
+                  key: password
+            - name: ME_CONFIG_MONGODB_ENABLE_ADMIN
+              value: "false"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "mongodb.fullname" . }}-express-svc
+  labels:
+    app: {{ include "mongodb.fullname" .}}-express
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8081
+      targetPort: 8081
+      protocol: TCP
+  selector:
+    app: {{ include "mongodb.fullname" .}}-express
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    cert-manager.io/cluster-issuer: {{ .Values.certificate.issuer.name }}
+    ingress.kubernetes.io/force-ssl-redirect: "true"
+    kubernetes.io/ingress.className: {{ .Values.ingressClassName }}
+    kubernets.io/tls-acme: "true"
+  name: {{ include "mongodb.fullname" . }}-express
+spec:
+  rules:
+  - host: {{ include "mongo-express.domain" . }}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ include "mongodb.fullname" . }}-express-svc
+            port:
+              number: 8081
+  tls:
+  - hosts:
+    - {{ include "mongo-express.domain" . }}
+    secretName: {{ include "mongodb.fullname" . }}-express
+{{- end }}

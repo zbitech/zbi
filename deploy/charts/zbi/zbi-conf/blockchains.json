@@ -1,0 +1,279 @@
+[
+    {
+      "name": "zcash",
+      "networks": [
+        "mainnet",
+        "testnet",
+        "regnet"
+      ],
+      "templates": {},
+      "nodes": [
+        {
+          "name": "Zcash Node",
+          "type": "zcash",
+          "images": [
+            {
+              "name": "node",
+              "version": "v5.3.2",
+              "url": "electriccoinco/zcashd:v5.3.2"
+            },
+            {
+              "name": "metrics",
+              "version": "v.0.3.6",
+              "url": "electriccoinco/zcashd_exporter:v0.3.6"
+            }
+          ],
+          "endpoints": {
+            "addressindex": [
+              "getaddressbalance",
+              "getaddressdeltas",
+              "getaddressmempool",
+              "getaddresstxids",
+              "getaddressutxos"
+            ],
+            "blockchain": [
+              "getbestblockhash",
+              "getblock",
+              "getblockchaininfo",
+              "getblockcount",
+              "getblockdeltas",
+              "getblockhash",
+              "getblockhashes",
+              "getblockheader",
+              "getchaintips",
+              "getdifficulty",
+              "getmempoolinfo",
+              "getrawmempool",
+              "getspentinfo",
+              "gettxout",
+              "gettxoutproof",
+              "gettxoutsetinfo",
+              "verifychain",
+              "verifytxoutproof",
+              "z_gettreestate"
+            ],
+            "control": [
+              "getexperimentalfeatures",
+              "getinfo",
+              "getmemoryinfo",
+              "help",
+              "setlogfilter",
+              "stop"
+            ],
+            "disclosure": [
+              "z_getpaymentdisclosure",
+              "z_validatepaymentdisclosure"
+            ],
+            "generating": [
+              "generate",
+              "getgenerate",
+              "setgenerate"
+            ],
+            "mining": [
+              "getblocksubsidy",
+              "getblocktemplate",
+              "getlocalsolps",
+              "getmininginfo",
+              "getnetworkhashps",
+              "getnetworksolps",
+              "prioritisetransaction",
+              "submitblock"
+            ],
+            "network": [
+              "addnode",
+              "clearbanned",
+              "disconnectnode",
+              "getaddednodeinfo",
+              "getconnectioncount",
+              "getdeprecationinfo",
+              "getnettotals",
+              "getnetworkinfo",
+              "getpeerinfo",
+              "listbanned",
+              "ping",
+              "setban"
+            ],
+            "rawtransactions": [
+              "createrawtransaction",
+              "decoderawtransaction",
+              "decodescript",
+              "fundrawtransaction",
+              "getrawtransaction",
+              "sendrawtransaction",
+              "signrawtransaction"
+            ],
+            "util": [
+              "createmultisig",
+              "estimatefee",
+              "estimatepriority",
+              "validateaddress",
+              "verifymessage",
+              "z_validateaddress"
+            ],
+            "wallet": [
+              "addmultisigaddress",
+              "backupwallet",
+              "dumpprivkey",
+              "dumpwallet",
+              "encryptwallet",
+              "getbalance",
+              "getnewaddress",
+              "getrawchangeaddress",
+              "getreceivedbyaddress",
+              "gettransaction",
+              "getunconfirmedbalance",
+              "getwalletinfo",
+              "importaddress",
+              "importprivkey",
+              "importpubkey",
+              "importwallet",
+              "keypoolrefill",
+              "listaddresses",
+              "listaddressgroupings",
+              "listlockunspent",
+              "listreceivedbyaddress",
+              "listsinceblock",
+              "listtransactions",
+              "listunspent",
+              "lockunspent",
+              "sendmany",
+              "sendtoaddress",
+              "settxfee",
+              "signmessage",
+              "z_exportkey",
+              "z_exportviewingkey",
+              "z_exportwallet",
+              "z_getbalance",
+              "z_getmigrationstatus",
+              "z_getnewaddress",
+              "z_getnotescount",
+              "z_getoperationresult",
+              "z_getoperationstatus",
+              "z_gettotalbalance",
+              "z_importkey",
+              "z_importviewingkey",
+              "z_importwallet",
+              "z_listaddresses",
+              "z_listoperationids",
+              "z_listreceivedbyaddress",
+              "z_listunspent",
+              "z_mergetoaddress",
+              "z_sendmany",
+              "z_setmigration",
+              "z_shieldcoinbase",
+              "z_viewtransaction",
+              "zcbenchmark",
+              "zcrawjoinsplit",
+              "zcrawkeygen",
+              "zcrawreceive",
+              "zcsamplejoinsplit"
+            ]
+          },
+          "ports": {
+            "service": 18232,
+            "metrics": 9100,
+            "envoy": 28232
+          },
+          "settings": {
+            "default": [
+              {
+                "key": "txindex",
+                "value": 1
+              },
+              {
+                "key": "showmetrics",
+                "value": 1
+              },
+              {
+                "key": "logips",
+                "value": 1
+              },
+              {
+                "key": "printtoconsole",
+                "value": 1
+              },
+              {
+                "key": "listen",
+                "value": 1
+              },
+              {
+                "key": "rpcclienttimeout",
+                "value": 30
+              },
+              {
+                "key": "maxconnections",
+                "value": 6
+              },
+              {
+                "key": "rpcbind",
+                "value": "0.0.0.0"
+              },
+              {
+                "key": "rpcallowip",
+                "value": "0.0.0.0/0"
+              }
+            ],
+            "miner": [
+              {
+                "key": "gen",
+                "value": 1
+              },
+              {
+                "key": "genproclimit",
+                "value": 1
+              },
+              {
+                "key": "equihashsolver",
+                "value": "tromp"
+              }
+            ],
+            "testnet": [
+              {
+                "key": "testnet",
+                "value": 1
+              },
+              {
+                "key": "addnode",
+                "value": "testnet.z.cash"
+              }
+            ],
+            "mainnet": [
+              {
+                "key": "testnet",
+                "value": 0
+              },
+              {
+                "key": "addnode",
+                "value": "mainnet.z.cash"
+              }
+            ]
+          },
+          "properties": {
+            "miner": false,
+            "connect": [],
+            "lwdInstances": []
+          }
+        },
+        {
+          "name": "Lightwallet Server",
+          "type": "lwd",
+          "images": [
+            {
+              "name": "lwd",
+              "version": "v0.4.13",
+              "url": "electriccoinco/lightwalletd:v0.4.13"
+            }
+          ],
+          "ports": {
+            "service": 9067,
+            "http": 9068,
+            "envoy": 29067
+          },
+          "properties": {
+            "zcashIsntance": "",
+            "logLevel": 10
+          }
+        }
+      ]
+    }
+  ]
