@@ -16,18 +16,3 @@ database:
 mongoexpress:
   enabled: true
 
-  mongodbServer: zbi-mongodb
-  mongodbEnableAdmin: true
-  mongodbAdminPassword: password
-  basicAuthUsername: admin
-  basicAuthPassword: gQQ4GdZidop5UnQh
-  ingress:
-    enabled: true
-    ingressClassName: contour
-    annotations:
-      cert-manager.io/cluster-issuer: cert-issuer
-      ingress.kubernetes.io/force-ssl-redirect: "true"
-      kubernetes.io/ingress.class: contour
-      kubernets.io/tls-acme: "true"
-      external-dns.alpha.kubernetes.io/hostname: db-dev.zbitech.io
-
