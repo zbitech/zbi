@@ -102,20 +102,34 @@ func CreateUnstructuredResource(result *unstructured.Unstructured) *model.Kubern
 }
 
 func GetResourceRequest(ctx context.Context, instance *model.Instance) (*model.ResourceRequest, bool) {
-	for _, resource := range instance.Resources.Resources {
-		if resource.Type == model.ResourceConfigMap {
-			properties, ok := resource.Properties["request"]
-			if ok {
-				var request model.ResourceRequest
-				if err := json.Unmarshal([]byte(properties.(string)), &request); err != nil {
-					logger.GetLogger(ctx).WithFields(logrus.Fields{"error": err}).Errorf("failed to marshal resource request")
-					return nil, false
-				}
 
-				return &request, true
+	if instance.Resources.Configmap != nil {
+		properties, ok := instance.Resources.Configmap.Properties["request"]
+		if ok {
+			var request model.ResourceRequest
+			if err := json.Unmarshal([]byte(properties.(string)), &request); err != nil {
+				logger.GetLogger(ctx).WithFields(logrus.Fields{"error": err}).Errorf("failed to marshal resource request")
+				return nil, false
 			}
+
+			return &request, true
 		}
 	}
+
+	// for _, resource := range instance.Resources.Resources {
+	// 	if resource.Type == model.ResourceConfigMap {
+	// 		properties, ok := resource.Properties["request"]
+	// 		if ok {
+	// 			var request model.ResourceRequest
+	// 			if err := json.Unmarshal([]byte(properties.(string)), &request); err != nil {
+	// 				logger.GetLogger(ctx).WithFields(logrus.Fields{"error": err}).Errorf("failed to marshal resource request")
+	// 				return nil, false
+	// 			}
+
+	// 			return &request, true
+	// 		}
+	// 	}
+	// }
 
 	return nil, false
 }
@@ -449,8 +463,8 @@ func CreateInstanceLabels(instance *model.Instance) map[string]string {
 	}
 }
 
-func CreateEnvoySpec(envoyServicePort int32) model.EnvoySpec {
-	envoy := GetPolicyInfo().EnvoyConfig
+func CreateEnvoySpec(policy *model.PolicyInfo, envoyServicePort int32) model.EnvoySpec {
+	envoy := policy.EnvoyConfig
 
 	return model.EnvoySpec{
 		Image:                 envoy.Image,
