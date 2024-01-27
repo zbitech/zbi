@@ -3,6 +3,10 @@ package main
 import (
 	"context"
 	"flag"
+	"os"
+	"os/signal"
+	"syscall"
+
 	"github.com/zbitech/controller/app/service-api/http"
 	"github.com/zbitech/controller/app/service-api/server"
 	"github.com/zbitech/controller/internal/klient"
@@ -10,9 +14,6 @@ import (
 	"github.com/zbitech/controller/internal/repository"
 	"github.com/zbitech/controller/internal/vars"
 	"github.com/zbitech/controller/pkg/logger"
-	"os"
-	"os/signal"
-	"syscall"
 )
 
 var (
@@ -45,13 +46,12 @@ func main() {
 	log.Info("starting http server")
 	go svr.Run(ctx)
 
-	go vars.KlientFactory.StartMonitor()
+	go vars.KlientFactory.StartMonitor(ctx)
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	sign := <-quit
 
-	vars.KlientFactory.StopMonitor()
+	vars.KlientFactory.StopMonitor(ctx)
 	log.Infof("Shutting down server. signal: %s", sign.String())
-
 }
