@@ -2,13 +2,14 @@ package middleware
 
 import (
 	"context"
+	"net/http"
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 	"github.com/zbitech/controller/pkg/logger"
 	"github.com/zbitech/controller/pkg/rctx"
-	"net/http"
-	"time"
 )
 
 type Middleware func(http.HandlerFunc) http.HandlerFunc
@@ -20,14 +21,6 @@ func Chain(f http.HandlerFunc, middlewares ...mux.MiddlewareFunc) http.Handler {
 	}
 
 	return middlewares[0](Chain(f, middlewares[1:cap(middlewares)]...))
-
-	//for _, m := range middlewares {
-	//	f = http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-	//		m(f)
-	//	})
-	//}
-	//
-	//return f
 }
 
 func InitRequest(f http.Handler) http.Handler {

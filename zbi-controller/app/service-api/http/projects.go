@@ -1,68 +1,84 @@
 package http
 
 import (
+	"net/http"
+
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"github.com/zbitech/controller/app/service-api/request"
 	"github.com/zbitech/controller/app/service-api/response"
-	"github.com/zbitech/controller/internal/utils"
 	"github.com/zbitech/controller/internal/vars"
 	"github.com/zbitech/controller/pkg/logger"
 	"github.com/zbitech/controller/pkg/model"
-	"github.com/zbitech/controller/pkg/rctx"
-	"net/http"
 )
 
 func CreateProject(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	log := logger.GetLogger(ctx)
 
-	var project model.Project
-	if err := request.ReadJSON(w, r, &project); err != nil {
+	var projectRequest model.Project
+	if err := request.ReadJSON(w, r, &projectRequest); err != nil {
 		response.BadRequestResponse(w, r, err)
 		return
 	}
 
-	user := ctx.Value(rctx.USERID).(string)
-	project.Owner = user
+	//	projectRequest.Owner = r.Header.Get("x-owner-id") //user := ctx.Value(rctx.USERID).(string)
+
+	repository := vars.RepositoryFactory.GetRepositoryService()
+	project, err := repository.CreateProject(ctx, &projectRequest)
+	if err != nil {
+		log.Errorf("Failed to create project in repository %s - %s", project.Name, err)
+		response.ServerErrorResponse(w, r, ctx, err)
+		return
+	}
 
 	zclient := vars.KlientFactory.GetZBIClient()
-	err := zclient.CreateProject(ctx, &project)
+	err = zclient.CreateProject(ctx, project)
 	if err != nil {
 		log.Errorf("Failed to create project %s - %s", project.Name, err)
 		response.ServerErrorResponse(w, r, ctx, err)
 		return
 	}
 
-	envelope := response.Envelope{"project": project}
-	if err = response.JSON(w, http.StatusCreated, envelope); err != nil {
+	err = repository.AddProjectActivity(ctx, project.Id, model.EventActionCreate)
+	if err != nil {
+		log.Errorf("failed to add create activity for project %s - %s", project.Id, err)
+	}
+
+	if err = response.JSON(w, http.StatusCreated, project); err != nil {
 		response.ServerErrorResponse(w, r, ctx, err)
 	}
 }
 
 func DeleteProject(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	//	log := logger.GetLogger(ctx)
+	log := logger.GetLogger(ctx)
 
-	projectName := request.GetParameterValue(r, request.PATH_PARAM, "project")
-	if len(projectName) == 0 {
+	projectId := request.GetParameterValue(r, request.PATH_PARAM, "project")
+	if len(projectId) == 0 {
 		response.BadRequestResponse(w, r, errors.New("project is required"))
 		return
 	}
 
-	var input struct {
-		Project   *model.Project   `json:"project"`
-		Instances []model.Instance `json:"instances"`
-	}
-
-	if err := request.ReadJSON(w, r, &input); err != nil {
-		response.BadRequestResponse(w, r, err)
-		return
-	}
-
-	zclient := vars.KlientFactory.GetZBIClient()
-	if err := zclient.DeleteProject(ctx, input.Project, input.Instances); err != nil {
+	repository := vars.RepositoryFactory.GetRepositoryService()
+	project, err := repository.GetProject(ctx, projectId)
+	if err != nil {
+		log.Errorf("Failed to retrieve project %s - %s", project.Name, err)
 		response.ServerErrorResponse(w, r, ctx, err)
 		return
+	}
+
+	instances, err := repository.GetInstances(ctx, project.Id)
+
+	zclient := vars.KlientFactory.GetZBIClient()
+	if err := zclient.DeleteProject(ctx, project, instances); err != nil {
+		response.ServerErrorResponse(w, r, ctx, err)
+		return
+	}
+
+	err = repository.AddProjectActivity(ctx, project.Id, model.EventActionDelete)
+	if err != nil {
+		log.Errorf("failed to add delete activity for project %s - %s", project.Id, err)
 	}
 
 	if err := response.JSON(w, http.StatusNoContent, response.Envelope{}); err != nil {
@@ -70,15 +86,16 @@ func DeleteProject(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// TODO - is this allowed?
 func UpdateProject(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	log := logger.GetLogger(ctx)
 
-	//action := request.GetParameterValue(r, request.GET_PARAM, "action")
-	//if len(action) == 0 {
-	//	response.BadRequestResponse(w, r, errors.New("action is required"))
-	//	return
-	//}
+	projectId := request.GetParameterValue(r, request.PATH_PARAM, "project")
+	if len(projectId) == 0 {
+		response.BadRequestResponse(w, r, errors.New("project is required"))
+		return
+	}
 
 	var project model.Project
 	if err := request.ReadJSON(w, r, &project); err != nil {
@@ -104,22 +121,34 @@ func RepairProject(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	log := logger.GetLogger(ctx)
 
-	var project model.Project
-	if err := request.ReadJSON(w, r, &project); err != nil {
-		response.BadRequestResponse(w, r, err)
+	projectId := request.GetParameterValue(r, request.PATH_PARAM, "project")
+	if len(projectId) == 0 {
+		response.BadRequestResponse(w, r, errors.New("project is required"))
+		return
+	}
+
+	repository := vars.RepositoryFactory.GetRepositoryService()
+	project, err := repository.GetProject(ctx, projectId)
+	if err != nil {
+		log.Errorf("Failed to retrieve project %s - %s", project.Name, err)
+		response.ServerErrorResponse(w, r, ctx, err)
 		return
 	}
 
 	zclient := vars.KlientFactory.GetZBIClient()
-	err := zclient.RepairProject(ctx, &project)
+	err = zclient.RepairProject(ctx, project)
 	if err != nil {
 		log.Errorf("Failed to update project %s - %s", project.Name, err)
 		response.ServerErrorResponse(w, r, ctx, err)
 		return
 	}
 
-	envelope := response.Envelope{"project": project}
-	if err = response.JSON(w, http.StatusOK, envelope); err != nil {
+	err = repository.AddProjectActivity(ctx, project.Id, model.EventActionRepair)
+	if err != nil {
+		log.Errorf("failed to add repair activity for project %s - %s", project.Id, err)
+	}
+
+	if err = response.JSON(w, http.StatusOK, project); err != nil {
 		response.ServerErrorResponse(w, r, ctx, err)
 	}
 }
@@ -129,16 +158,21 @@ func GetProjects(w http.ResponseWriter, r *http.Request) {
 	log := logger.GetLogger(ctx)
 
 	log.Infof("getting projects")
-	zclient := vars.KlientFactory.GetZBIClient()
-	projects, err := zclient.GetProjects(ctx)
+	repository := vars.RepositoryFactory.GetRepositoryService()
+
+	owner := r.Header.Get("x-owner-id")
+	projects, err := repository.GetProjects(ctx, owner)
+
+	//	zclient := vars.KlientFactory.GetZBIClient()
+	//	projects, err := zclient.GetProjects(ctx)
+
 	if err != nil {
 		log.Errorf("failed to retrieve projects")
 		response.ServerErrorResponse(w, r, ctx, err)
 		return
 	}
 
-	envelope := response.Envelope{"projects": projects}
-	if err = response.JSON(w, http.StatusOK, envelope); err != nil {
+	if err = response.JSON(w, http.StatusOK, projects); err != nil {
 		response.ServerErrorResponse(w, r, ctx, err)
 	}
 }
@@ -147,67 +181,101 @@ func GetProject(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	log := logger.GetLogger(ctx)
 
-	projectName := request.GetParameterValue(r, request.PATH_PARAM, "project")
+	projectId := request.GetParameterValue(r, request.PATH_PARAM, "project")
+	if len(projectId) == 0 {
+		response.BadRequestResponse(w, r, errors.New("project is required"))
+		return
+	}
 
-	log.Infof("getting projects %s", projectName)
-	zclient := vars.KlientFactory.GetZBIClient()
-	project, err := zclient.GetProject(ctx, projectName)
+	log.Infof("getting project - %s", projectId)
+	repository := vars.RepositoryFactory.GetRepositoryService()
+	project, err := repository.GetProject(ctx, projectId)
 	if err != nil {
 		log.Errorf("failed to retrieve projects")
 		response.ServerErrorResponse(w, r, ctx, err)
 		return
 	}
 
-	envelope := response.Envelope{"project": project}
-	if err = response.JSON(w, http.StatusOK, envelope); err != nil {
+	// envelope := response.Envelope{"project": project}
+	if err = response.JSON(w, http.StatusOK, project); err != nil {
 		response.ServerErrorResponse(w, r, ctx, err)
 	}
 }
 
-func GetProjectResources(w http.ResponseWriter, r *http.Request) {
+// CreateInstance creates the resources associated with the instance.
+// input - the instance to be created and a list of existing instances to be
+// peered with the new instance.
+// response - the instance and the list of resources created.
+func CreateInstance(w http.ResponseWriter, r *http.Request) {
+
 	ctx := r.Context()
 	log := logger.GetLogger(ctx)
 
-	projectName := request.GetParameterValue(r, request.PATH_PARAM, "project")
-
-	log.Infof("getting resources for project %s", projectName)
-	zclient := vars.KlientFactory.GetZBIClient()
-	resources, err := zclient.GetProjectResources(ctx, projectName)
-	if err != nil {
-		log.Errorf("failed to retrieve resources for project %s", projectName)
-		response.ServerErrorResponse(w, r, ctx, err)
-		return
-	}
-
-	envelope := response.Envelope{"resources": resources}
-	if err = response.JSON(w, http.StatusOK, envelope); err != nil {
-		response.ServerErrorResponse(w, r, ctx, err)
-	}
-}
-
-func GetProjectResource(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	log := logger.GetLogger(ctx)
-
-	project := request.GetParameterValue(r, request.PATH_PARAM, "project")
-	resourceName := request.GetParameterValue(r, request.PATH_PARAM, "resource")
-	resourceType := request.GetParameterValue(r, request.PATH_PARAM, "type")
-	if len(project) == 0 || len(resourceName) == 0 || len(resourceType) == 0 {
+	projectId := request.GetParameterValue(r, request.PATH_PARAM, "project")
+	if len(projectId) == 0 {
 		response.BadRequestResponse(w, r, errors.New("project is required"))
 		return
 	}
 
-	zclient := vars.KlientFactory.GetZBIClient()
-	resource, err := zclient.GetProjectResource(ctx, project, resourceName, utils.ResourceObjectType(resourceType))
-
+	repository := vars.RepositoryFactory.GetRepositoryService()
+	project, err := repository.GetProject(ctx, projectId)
 	if err != nil {
-		log.Errorf("Failed to retrieve resource %s (%s) for project %s - %s", resourceName, resourceType, project, err)
+		log.Errorf("failed to retrieve projects")
 		response.ServerErrorResponse(w, r, ctx, err)
 		return
 	}
 
-	envelope := response.Envelope{"resource": resource}
-	if err = response.JSON(w, http.StatusOK, envelope); err != nil {
+	var instance_req model.InstanceRequest
+	if err := request.ReadJSON(w, r, &instance_req); err != nil {
+		log.WithFields(logrus.Fields{"error": err, "project": projectId}).Errorf("failed to read input")
+		response.BadRequestResponse(w, r, err)
+		return
+	}
+	log.WithFields(logrus.Fields{"instance": instance_req}).Infof("instance details")
+
+	instance, err := repository.CreateInstance(ctx, project.Id, project.Owner, &instance_req)
+	if err != nil {
+		log.Errorf("failed to create instance")
+		response.ServerErrorResponse(w, r, ctx, err)
+		return
+	}
+
+	zclient := vars.KlientFactory.GetZBIClient()
+	err = zclient.CreateInstance(ctx, project, instance)
+	if err != nil {
+		response.ServerErrorResponse(w, r, ctx, err)
+		return
+	}
+
+	err = repository.AddInstanceActivity(ctx, instance.Id, model.EventActionCreate)
+	if err != nil {
+		log.Errorf("failed to add create activity for instance %s - %s", instance.Id, err)
+	}
+
+	if err = response.JSON(w, http.StatusCreated, instance); err != nil {
+		response.ServerErrorResponse(w, r, ctx, err)
+	}
+}
+
+func GetInstances(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	log := logger.GetLogger(ctx)
+
+	projectId := request.GetParameterValue(r, request.PATH_PARAM, "project")
+	if len(projectId) == 0 {
+		response.BadRequestResponse(w, r, errors.New("project is required"))
+		return
+	}
+
+	repository := vars.RepositoryFactory.GetRepositoryService()
+	instances, err := repository.GetInstances(ctx, projectId)
+	if err != nil {
+		log.Errorf("failed to retrieve instances")
+		response.ServerErrorResponse(w, r, ctx, err)
+		return
+	}
+
+	if err = response.JSON(w, http.StatusOK, instances); err != nil {
 		response.ServerErrorResponse(w, r, ctx, err)
 	}
 }
