@@ -2,6 +2,7 @@ package interfaces
 
 import (
 	"context"
+
 	"github.com/zbitech/controller/pkg/model"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -15,8 +16,8 @@ import (
 type KlientFactoryIF interface {
 	Init(ctx context.Context, repoSvc RepositoryServiceIF) error
 	GetZBIClient() ZBIClientIF
-	StartMonitor()
-	StopMonitor()
+	StartMonitor(ctx context.Context)
+	StopMonitor(ctx context.Context)
 }
 
 type KlientMonitorIF interface {
@@ -26,20 +27,20 @@ type KlientMonitorIF interface {
 }
 
 type ZBIClientIF interface {
-	GetProjects(ctx context.Context) ([]model.Project, error)
-	GetProject(ctx context.Context, project string) (*model.Project, error)
+	//GetProjects(ctx context.Context) ([]model.Project, error)
+	//GetProject(ctx context.Context, project string) (*model.Project, error)
 	CreateProject(ctx context.Context, project *model.Project) error
 	RepairProject(ctx context.Context, project *model.Project) error
 	DeleteProject(ctx context.Context, project *model.Project, instances []model.Instance) error
-	GetProjectResources(ctx context.Context, project string) ([]model.KubernetesResource, error)
-	GetProjectResource(ctx context.Context, project, resourceName string, resourceType model.ResourceObjectType) (*model.KubernetesResource, error)
+	//GetProjectResources(ctx context.Context, project string) ([]model.KubernetesResource, error)
+	//GetProjectResource(ctx context.Context, project, resourceName string, resourceType model.ResourceObjectType) (*model.KubernetesResource, error)
 
 	CreateInstance(ctx context.Context, project *model.Project, instance *model.Instance) error
-	GetAllInstances(ctx context.Context, project *model.Project) ([]model.Instance, error)
-	GetInstances(ctx context.Context, project *model.Project, instances []string) ([]model.Instance, error)
-	GetInstance(ctx context.Context, project *model.Project, instance string) (*model.Instance, error)
-	GetInstanceResources(ctx context.Context, project *model.Project, instance string) (*model.KubernetesResources, error)
-	GetInstanceResource(ctx context.Context, project *model.Project, instance, resourceName string, resourceType model.ResourceObjectType) (*model.KubernetesResource, error)
+	//GetAllInstances(ctx context.Context, project *model.Project) ([]model.Instance, error)
+	//GetInstances(ctx context.Context, project *model.Project, instances []string) ([]model.Instance, error)
+	//GetInstance(ctx context.Context, project *model.Project, instance string) (*model.Instance, error)
+	//GetInstanceResources(ctx context.Context, project *model.Project, instance string) (*model.KubernetesResources, error)
+	//GetInstanceResource(ctx context.Context, project *model.Project, instance, resourceName string, resourceType model.ResourceObjectType) (*model.KubernetesResource, error)
 	DeleteInstanceResource(ctx context.Context, project *model.Project, instance *model.Instance, resourceName string, resourceType model.ResourceObjectType) error
 	UpdateInstance(ctx context.Context, project *model.Project, instance *model.Instance) error
 	DeleteInstance(ctx context.Context, project *model.Project, instance *model.Instance) error
