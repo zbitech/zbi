@@ -1,6 +1,7 @@
 package manager
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 
@@ -151,8 +152,8 @@ func getZcashInstanceHost(name, namespace string) string {
 	return fmt.Sprintf("%s-%s.%s.svc.cluster.local", ZCASH_SVC_PREFIX, name, namespace)
 }
 
-func getZcashInstancePort() string {
-	zcashIc, err := helper.GetBlockchainNodeInfo(model.InstanceTypeZCASH)
+func getZcashInstancePort(ctx context.Context) string {
+	zcashIc, err := helper.GetBlockchainNodeInfo(ctx, model.InstanceTypeZCASH)
 	if err != nil {
 		return ""
 	}

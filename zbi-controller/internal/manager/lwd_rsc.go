@@ -36,10 +36,10 @@ func (L *LWDInstanceResourceManager) CreateInstanceResource(ctx context.Context,
 	var request = instance.Request
 
 	dataVolumeName = fmt.Sprintf("%s-%s", instance.Name, utils.GenerateRandomString(5, true))
-	dataVolumeSize = request.VolumeSize
+	dataVolumeSize = request.Volume.Size
 
-	policy := helper.GetPolicyInfo()
-	ic, err := helper.GetBlockchainNodeInfo(instance.InstanceType)
+	policy := helper.GetPolicyInfo(ctx)
+	ic, err := helper.GetBlockchainNodeInfo(ctx, instance.InstanceType)
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +50,7 @@ func (L *LWDInstanceResourceManager) CreateInstanceResource(ctx context.Context,
 	}
 
 	zcashInstance := getZcashInstanceHost(peers[0].Name, project.GetNamespace())
-	zcashPort := getZcashInstancePort()
+	zcashPort := getZcashInstancePort(ctx)
 
 	lwdSpec := model.InstanceSpec{
 		Name:               instance.Name,
@@ -59,7 +59,7 @@ func (L *LWDInstanceResourceManager) CreateInstanceResource(ctx context.Context,
 		Labels:             helper.CreateInstanceLabels(instance),
 		DomainName:         policy.DomainName,
 		DomainSecret:       policy.CertificateName,
-		Envoy:              helper.CreateEnvoySpec(ic.GetPort(ENVOY_PORT)),
+		Envoy:              helper.CreateEnvoySpec(policy, ic.GetPort(ENVOY_PORT)),
 		DataVolumeName:     dataVolumeName,
 		Images: map[string]string{
 			LIGHT_WALLET_IMAGE: ic.GetImageRepository(LWD_IMAGE),
@@ -97,8 +97,8 @@ func (L *LWDInstanceResourceManager) CreateInstanceResource(ctx context.Context,
 	storageClass := policy.StorageClass
 	var volumeSpecs = []model.VolumeSpec{
 		{VolumeName: dataVolumeName, StorageClass: storageClass, Namespace: project.GetNamespace(),
-			VolumeDataType: string(request.VolumeType), DataSourceType: request.VolumeSourceType,
-			SourceName: request.VolumeSourceName,
+			VolumeDataType: string(request.Volume.Type), DataSourceType: request.Volume.Source.Type,
+			SourceName: request.Volume.Source.Ref,
 			Size:       dataVolumeSize, Labels: lwdSpec.Labels},
 	}
 
@@ -150,7 +150,7 @@ func (L *LWDInstanceResourceManager) CreateUpdateResource(ctx context.Context, p
 		Properties: map[string]interface{}{
 			ZCASH_INSTANCE_NAME: request.Properties[zcashInstanceProperty],
 			ZCASH_INSTANCE:      getZcashInstanceHost(peers[0].Name, project.GetNamespace()),
-			ZCASH_PORT:          getZcashInstancePort(),
+			ZCASH_PORT:          getZcashInstancePort(ctx),
 			LOG_LEVEL:           request.Properties[logLevelProperty],
 		},
 	}
@@ -180,8 +180,8 @@ func (L *LWDInstanceResourceManager) CreateIngressResource(ctx context.Context, 
 	var log = logger.GetServiceLogger(ctx, "lwd.CreateIngressResource")
 	defer func() { logger.LogServiceTime(log) }()
 
-	policy := helper.GetPolicyInfo()
-	ic, err := helper.GetBlockchainNodeInfo(instance.InstanceType)
+	policy := helper.GetPolicyInfo(ctx)
+	ic, err := helper.GetBlockchainNodeInfo(ctx, instance.InstanceType)
 	if err != nil {
 		return nil, err
 	}
@@ -197,7 +197,7 @@ func (L *LWDInstanceResourceManager) CreateIngressResource(ctx context.Context, 
 		Labels:       helper.CreateInstanceLabels(instance),
 		DomainName:   policy.DomainName,
 		DomainSecret: policy.CertificateName,
-		Envoy:        helper.CreateEnvoySpec(ic.GetPort(ENVOY_PORT)),
+		Envoy:        helper.CreateEnvoySpec(policy, ic.GetPort(ENVOY_PORT)),
 	}
 
 	var specObj string
@@ -228,10 +228,10 @@ func (L *LWDInstanceResourceManager) CreateStartResource(ctx context.Context, pr
 	var log = logger.GetServiceLogger(ctx, "lwd.CreateStartResource")
 	defer func() { logger.LogServiceTime(log) }()
 
-	pvc := instance.GetResourceByType(model.ResourcePersistentVolumeClaim)
+	pvc := instance.Resources.Persistentvolumeclaim // GetResourceByType(model.ResourcePersistentVolumeClaim)
 
-	policy := helper.GetPolicyInfo()
-	ic, err := helper.GetBlockchainNodeInfo(instance.InstanceType)
+	policy := helper.GetPolicyInfo(ctx)
+	ic, err := helper.GetBlockchainNodeInfo(ctx, instance.InstanceType)
 	if err != nil {
 		return nil, err
 	}
@@ -248,7 +248,7 @@ func (L *LWDInstanceResourceManager) CreateStartResource(ctx context.Context, pr
 		Labels:             helper.CreateInstanceLabels(instance),
 		DomainName:         policy.DomainName,
 		DomainSecret:       policy.CertificateName,
-		Envoy:              helper.CreateEnvoySpec(ic.GetPort(ENVOY_PORT)),
+		Envoy:              helper.CreateEnvoySpec(policy, ic.GetPort(ENVOY_PORT)),
 		DataVolumeName:     pvc.Name,
 		Images: map[string]string{
 			LIGHT_WALLET_IMAGE: ic.GetImageRepository(LWD_IMAGE),
@@ -293,7 +293,7 @@ func (L *LWDInstanceResourceManager) CreateStopResource(ctx context.Context, pro
 	var resources = make([]model.KubernetesResource, 0)
 	var objects = make([]unstructured.Unstructured, 0)
 
-	deployment := instance.GetResourceByType(model.ResourceDeployment)
+	deployment := instance.Resources.Deployment // GetResourceByType(model.ResourceDeployment)
 	if deployment != nil && deployment.Status == "active" {
 		resources = append(resources, *deployment)
 	}
@@ -324,18 +324,18 @@ func (L *LWDInstanceResourceManager) CreateRepairResource(ctx context.Context, p
 
 	var dataVolumeName, dataVolumeSize string
 
-	pvc := instance.GetResourceByType(model.ResourcePersistentVolumeClaim)
+	pvc := instance.Resources.Persistentvolumeclaim // GetResourceByType(model.ResourcePersistentVolumeClaim)
 	if pvc != nil && pvc.Status == "active" {
 		dataVolumeName = pvc.Name
-		dataVolumeSize = request.VolumeSize
+		dataVolumeSize = request.Volume.Size
 	} else {
 		dataVolumeName = fmt.Sprintf("%s-%s", instance.Name, utils.GenerateRandomString(5, true))
-		dataVolumeSize = request.VolumeSize
+		dataVolumeSize = request.Volume.Size
 		pvc.Name = dataVolumeName // create new volume
 	}
 
-	policy := helper.GetPolicyInfo()
-	ic, err := helper.GetBlockchainNodeInfo(instance.InstanceType)
+	policy := helper.GetPolicyInfo(ctx)
+	ic, err := helper.GetBlockchainNodeInfo(ctx, instance.InstanceType)
 	if err != nil {
 		return nil, err
 	}
@@ -346,7 +346,7 @@ func (L *LWDInstanceResourceManager) CreateRepairResource(ctx context.Context, p
 	}
 
 	zcashInstance := getZcashInstanceHost(peers[0].Name, project.GetNamespace())
-	zcashPort := getZcashInstancePort()
+	zcashPort := getZcashInstancePort(ctx)
 
 	lwdSpec := model.InstanceSpec{
 		Name:               instance.Name,
@@ -355,7 +355,7 @@ func (L *LWDInstanceResourceManager) CreateRepairResource(ctx context.Context, p
 		Labels:             helper.CreateInstanceLabels(instance),
 		DomainName:         policy.DomainName,
 		DomainSecret:       policy.CertificateName,
-		Envoy:              helper.CreateEnvoySpec(ic.GetPort(ENVOY_PORT)),
+		Envoy:              helper.CreateEnvoySpec(policy, ic.GetPort(ENVOY_PORT)),
 		DataVolumeName:     dataVolumeName,
 		Images: map[string]string{
 			LIGHT_WALLET_IMAGE: ic.GetImageRepository(LWD_IMAGE),
@@ -394,8 +394,8 @@ func (L *LWDInstanceResourceManager) CreateRepairResource(ctx context.Context, p
 		storageClass := policy.StorageClass
 		var volumeSpecs = []model.VolumeSpec{
 			{VolumeName: dataVolumeName, StorageClass: storageClass, Namespace: project.GetNamespace(),
-				VolumeDataType: string(request.VolumeType), DataSourceType: request.VolumeSourceType,
-				SourceName: request.VolumeSourceName,
+				VolumeDataType: string(request.Volume.Type), DataSourceType: request.Volume.Source.Type,
+				SourceName: request.Volume.Source.Ref,
 				Size:       dataVolumeSize, Labels: lwdSpec.Labels},
 		}
 
@@ -426,9 +426,9 @@ func (L *LWDInstanceResourceManager) CreateSnapshotResource(ctx context.Context,
 	var log = logger.GetServiceLogger(ctx, "lwd.CreateSnapshotResource")
 	defer func() { logger.LogServiceTime(log) }()
 
-	resource := instance.GetResourceByType(model.ResourcePersistentVolumeClaim)
+	resource := instance.Resources.Persistentvolumeclaim // GetResourceByType(model.ResourcePersistentVolumeClaim)
 
-	policy := helper.GetPolicyInfo()
+	policy := helper.GetPolicyInfo(ctx)
 
 	var req model.SnapshotRequest
 	req.Namespace = project.GetNamespace()
@@ -447,8 +447,8 @@ func (L *LWDInstanceResourceManager) CreateSnapshotScheduleResource(ctx context.
 
 	var req model.SnapshotScheduleRequest
 
-	policy := helper.GetPolicyInfo()
-	resource := instance.GetResourceByType(model.ResourcePersistentVolumeClaim)
+	policy := helper.GetPolicyInfo(ctx)
+	resource := instance.Resources.Persistentvolumeclaim // GetResourceByType(model.ResourcePersistentVolumeClaim)
 
 	req.Namespace = project.GetNamespace()
 	req.VolumeName = resource.Name
@@ -468,9 +468,10 @@ func (L *LWDInstanceResourceManager) CreateRotationResource(ctx context.Context,
 	return []unstructured.Unstructured{}, nil
 }
 
-func (L *LWDInstanceResourceManager) CreateDeleteResource(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance, resources []model.KubernetesResource) ([]model.KubernetesResource, []unstructured.Unstructured, error) {
+func (L *LWDInstanceResourceManager) CreateDeleteResource(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance) ([]model.KubernetesResource, []unstructured.Unstructured, error) {
 	var log = logger.GetServiceLogger(ctx, "lwd.CreateDeleteResource")
 	defer func() { logger.LogServiceTime(log) }()
 
+	resources := instance.GetResourceArray()
 	return resources, []unstructured.Unstructured{}, nil
 }

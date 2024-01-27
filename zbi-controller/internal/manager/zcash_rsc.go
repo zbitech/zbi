@@ -44,8 +44,8 @@ func (z *ZcashInstanceResourceManager) CreateInstanceResource(ctx context.Contex
 	var specArr []string
 	var err error
 
-	policy := helper.GetPolicyInfo()
-	ic, err := helper.GetBlockchainNodeInfo(instance.InstanceType)
+	policy := helper.GetPolicyInfo(ctx)
+	ic, err := helper.GetBlockchainNodeInfo(ctx, instance.InstanceType)
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +68,7 @@ func (z *ZcashInstanceResourceManager) CreateInstanceResource(ctx context.Contex
 	conf = getZcashPeers(conf, rpcport, project.GetNamespace(), peers...)
 
 	dataVolumeName := fmt.Sprintf("%s-%s", instance.Name, utils.GenerateRandomString(5, true))
-	dataVolumeSize := request.VolumeSize
+	dataVolumeSize := request.Volume.Size
 
 	username := utils.GenerateRandomString(6, true)
 	password := utils.GenerateSecurePassword()
@@ -80,7 +80,7 @@ func (z *ZcashInstanceResourceManager) CreateInstanceResource(ctx context.Contex
 		Labels:             helper.CreateInstanceLabels(instance),
 		DomainName:         policy.DomainName,
 		DomainSecret:       policy.CertificateName,
-		Envoy:              helper.CreateEnvoySpec(ic.GetPort(ENVOY_PORT)),
+		Envoy:              helper.CreateEnvoySpec(policy, ic.GetPort(ENVOY_PORT)),
 		DataVolumeName:     dataVolumeName,
 		Images: map[string]string{
 			ZCASH:   ic.GetImageRepository(NODE_IMAGE),
@@ -117,8 +117,8 @@ func (z *ZcashInstanceResourceManager) CreateInstanceResource(ctx context.Contex
 
 	var volumeSpecs = []model.VolumeSpec{
 		{VolumeName: dataVolumeName, StorageClass: storageClass, Namespace: project.GetNamespace(),
-			VolumeDataType: string(request.VolumeType), DataSourceType: request.VolumeSourceType,
-			SourceName: request.VolumeSourceName,
+			VolumeDataType: string(request.Volume.Type), DataSourceType: request.Volume.Source.Type,
+			SourceName: request.Volume.Source.Ref,
 			Size:       dataVolumeSize, Labels: instanceSpec.Labels},
 	}
 
@@ -176,7 +176,7 @@ func (z *ZcashInstanceResourceManager) CreateUpdatePeersResource(ctx context.Con
 		return nil, err
 	}
 
-	ic, err := helper.GetBlockchainNodeInfo(instance.InstanceType)
+	ic, err := helper.GetBlockchainNodeInfo(ctx, instance.InstanceType)
 	if err != nil {
 		return nil, err
 	}
@@ -219,7 +219,7 @@ func (z *ZcashInstanceResourceManager) CreateUpdateResource(ctx context.Context,
 		return nil, err
 	}
 
-	ic, err := helper.GetBlockchainNodeInfo(instance.InstanceType)
+	ic, err := helper.GetBlockchainNodeInfo(ctx, instance.InstanceType)
 	if err != nil {
 		return nil, err
 	}
@@ -290,8 +290,8 @@ func (z *ZcashInstanceResourceManager) CreateIngressResource(ctx context.Context
 		return nil, err
 	}
 
-	policy := helper.GetPolicyInfo()
-	ic, err := helper.GetBlockchainNodeInfo(instance.InstanceType)
+	policy := helper.GetPolicyInfo(ctx)
+	ic, err := helper.GetBlockchainNodeInfo(ctx, instance.InstanceType)
 	if err != nil {
 		return nil, err
 	}
@@ -303,7 +303,7 @@ func (z *ZcashInstanceResourceManager) CreateIngressResource(ctx context.Context
 		Labels:             helper.CreateInstanceLabels(instance),
 		DomainName:         policy.DomainName,
 		DomainSecret:       policy.CertificateName,
-		Envoy:              helper.CreateEnvoySpec(ic.GetPort(ENVOY_PORT)),
+		Envoy:              helper.CreateEnvoySpec(policy, ic.GetPort(ENVOY_PORT)),
 	}
 	var specObj string
 
@@ -342,7 +342,7 @@ func (z *ZcashInstanceResourceManager) CreateStartResource(ctx context.Context, 
 	var log = logger.GetServiceLogger(ctx, "zcash.CreateStartResource")
 	defer func() { logger.LogServiceTime(log) }()
 
-	pvc := instance.GetResourceByType(model.ResourcePersistentVolumeClaim)
+	pvc := instance.Resources.Persistentvolumeclaim // .GetResourceByType(model.ResourcePersistentVolumeClaim)
 
 	var err error
 	fileTemplate, err := helper.GetInstanceTemplate(instance.InstanceType)
@@ -350,8 +350,8 @@ func (z *ZcashInstanceResourceManager) CreateStartResource(ctx context.Context, 
 		return nil, err
 	}
 
-	policy := helper.GetPolicyInfo()
-	ic, err := helper.GetBlockchainNodeInfo(instance.InstanceType)
+	policy := helper.GetPolicyInfo(ctx)
+	ic, err := helper.GetBlockchainNodeInfo(ctx, instance.InstanceType)
 	if err != nil {
 		return nil, err
 	}
@@ -363,7 +363,7 @@ func (z *ZcashInstanceResourceManager) CreateStartResource(ctx context.Context, 
 		Labels:             helper.CreateInstanceLabels(instance),
 		DomainName:         policy.DomainName,
 		DomainSecret:       policy.CertificateName,
-		Envoy:              helper.CreateEnvoySpec(ic.GetPort(ENVOY_PORT)),
+		Envoy:              helper.CreateEnvoySpec(policy, ic.GetPort(ENVOY_PORT)),
 		DataVolumeName:     pvc.Name,
 		Images: map[string]string{
 			ZCASH:   ic.GetImageRepository(NODE_IMAGE),
@@ -402,7 +402,7 @@ func (z *ZcashInstanceResourceManager) CreateStopResource(ctx context.Context, p
 	var resources = make([]model.KubernetesResource, 0)
 	var objects = make([]unstructured.Unstructured, 0)
 
-	deployment := instance.GetResourceByType(model.ResourceDeployment)
+	deployment := instance.Resources.Deployment // .GetResourceByType(model.ResourceDeployment)
 	if deployment != nil && deployment.Status == "active" {
 		resources = append(resources, *deployment)
 	}
@@ -428,8 +428,8 @@ func (z *ZcashInstanceResourceManager) CreateRepairResource(ctx context.Context,
 	var specArr []string
 	var err error
 
-	policy := helper.GetPolicyInfo()
-	ic, err := helper.GetBlockchainNodeInfo(instance.InstanceType)
+	policy := helper.GetPolicyInfo(ctx)
+	ic, err := helper.GetBlockchainNodeInfo(ctx, instance.InstanceType)
 	if err != nil {
 		return nil, err
 	}
@@ -441,8 +441,8 @@ func (z *ZcashInstanceResourceManager) CreateRepairResource(ctx context.Context,
 
 	var username, password, dataVolumeName, dataVolumeSize string
 
-	pvc := instance.GetResourceByType(model.ResourcePersistentVolumeClaim)
-	secret := instance.GetResourceByType(model.ResourceSecret)
+	pvc := instance.Resources.Persistentvolumeclaim // GetResourceByType(model.ResourcePersistentVolumeClaim)
+	secret := instance.Resources.Secret             // GetResourceByType(model.ResourceSecret)
 
 	var request = instance.Request
 
@@ -453,10 +453,10 @@ func (z *ZcashInstanceResourceManager) CreateRepairResource(ctx context.Context,
 
 	if pvc != nil && pvc.Status == "active" {
 		dataVolumeName = pvc.Name
-		dataVolumeSize = request.VolumeSize
+		dataVolumeSize = request.Volume.Size
 	} else {
 		dataVolumeName = fmt.Sprintf("%s-%s", instance.Name, utils.GenerateRandomString(5, true))
-		dataVolumeSize = request.VolumeSize
+		dataVolumeSize = request.Volume.Size
 		pvc.Name = dataVolumeName // re-create in-active volume
 	}
 
@@ -475,7 +475,7 @@ func (z *ZcashInstanceResourceManager) CreateRepairResource(ctx context.Context,
 		Labels:             helper.CreateInstanceLabels(instance),
 		DomainName:         policy.DomainName,
 		DomainSecret:       policy.CertificateName,
-		Envoy:              helper.CreateEnvoySpec(ic.GetPort(ENVOY_PORT)),
+		Envoy:              helper.CreateEnvoySpec(policy, ic.GetPort(ENVOY_PORT)),
 		DataVolumeName:     dataVolumeName,
 		Images: map[string]string{
 			ZCASH:   ic.GetImageRepository(NODE_IMAGE),
@@ -511,8 +511,8 @@ func (z *ZcashInstanceResourceManager) CreateRepairResource(ctx context.Context,
 		storageClass := policy.StorageClass
 		var volumeSpecs = []model.VolumeSpec{
 			{VolumeName: dataVolumeName, StorageClass: storageClass, Namespace: project.GetNamespace(),
-				VolumeDataType: string(request.VolumeType), DataSourceType: request.VolumeSourceType,
-				SourceName: request.VolumeSourceName,
+				VolumeDataType: string(request.Volume.Type), DataSourceType: request.Volume.Source.Type,
+				SourceName: request.Volume.Source.Ref,
 				Size:       dataVolumeSize, Labels: instanceSpec.Labels},
 		}
 
@@ -545,9 +545,9 @@ func (z *ZcashInstanceResourceManager) CreateSnapshotResource(ctx context.Contex
 
 	var req model.SnapshotRequest
 
-	policy := helper.GetPolicyInfo()
+	policy := helper.GetPolicyInfo(ctx)
 
-	resource := instance.GetResourceByType(model.ResourcePersistentVolumeClaim)
+	resource := instance.Resources.Persistentvolumeclaim // GetResourceByType(model.ResourcePersistentVolumeClaim)
 
 	appRsc := vars.ManagerFactory.GetAppResourceManager(ctx)
 	req.Namespace = project.GetNamespace()
@@ -564,11 +564,11 @@ func (z *ZcashInstanceResourceManager) CreateSnapshotScheduleResource(ctx contex
 	var log = logger.GetServiceLogger(ctx, "zcash.CreateSnapshotScheduleResource")
 	defer func() { logger.LogServiceTime(log) }()
 
-	policy := helper.GetPolicyInfo()
+	policy := helper.GetPolicyInfo(ctx)
 
 	var req model.SnapshotScheduleRequest
 
-	resource := instance.GetResourceByType(model.ResourcePersistentVolumeClaim)
+	resource := instance.Resources.Persistentvolumeclaim // GetResourceByType(model.ResourcePersistentVolumeClaim)
 
 	appRsc := vars.ManagerFactory.GetAppResourceManager(ctx)
 	req.Namespace = project.GetNamespace()
@@ -592,8 +592,8 @@ func (z *ZcashInstanceResourceManager) CreateRotationResource(ctx context.Contex
 		return nil, err
 	}
 
-	policy := helper.GetPolicyInfo()
-	ic, err := helper.GetBlockchainNodeInfo(instance.InstanceType)
+	policy := helper.GetPolicyInfo(ctx)
+	ic, err := helper.GetBlockchainNodeInfo(ctx, instance.InstanceType)
 	if err != nil {
 		return nil, err
 	}
@@ -606,7 +606,7 @@ func (z *ZcashInstanceResourceManager) CreateRotationResource(ctx context.Contex
 		ServiceAccountName: policy.ServiceAccount,
 		Namespace:          project.GetNamespace(),
 		Labels:             helper.CreateInstanceLabels(instance),
-		Envoy:              helper.CreateEnvoySpec(ic.GetPort(ENVOY_PORT)),
+		Envoy:              helper.CreateEnvoySpec(policy, ic.GetPort(ENVOY_PORT)),
 		Properties: map[string]interface{}{
 			USERNAME: username,
 			PASSWORD: password,
@@ -625,7 +625,7 @@ func (z *ZcashInstanceResourceManager) CreateRotationResource(ctx context.Contex
 	return helper.CreateYAMLObjects(specArr /*, instance.Project, instance.Name*/)
 }
 
-func (z *ZcashInstanceResourceManager) CreateDeleteResource(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance, resources []model.KubernetesResource) ([]model.KubernetesResource, []unstructured.Unstructured, error) {
+func (z *ZcashInstanceResourceManager) CreateDeleteResource(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance) ([]model.KubernetesResource, []unstructured.Unstructured, error) {
 
 	var log = logger.GetServiceLogger(ctx, "zcash.CreateDeleteResource")
 	defer func() { logger.LogServiceTime(log) }()
@@ -635,6 +635,8 @@ func (z *ZcashInstanceResourceManager) CreateDeleteResource(ctx context.Context,
 	if err != nil {
 		return nil, nil, err
 	}
+
+	resources := instance.GetResourceArray()
 
 	for index := 0; index < len(resources); index++ {
 		if resources[index].Type == model.ResourceHTTPProxy {

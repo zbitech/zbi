@@ -9,6 +9,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/zbitech/controller/internal/helper"
 	"github.com/zbitech/controller/internal/utils"
+	"github.com/zbitech/controller/internal/vars"
 	"github.com/zbitech/controller/pkg/interfaces"
 	"github.com/zbitech/controller/pkg/logger"
 	"github.com/zbitech/controller/pkg/model"
@@ -154,16 +155,19 @@ func (p ProjectResourceManager) CreateInstanceResource(ctx context.Context, proj
 		return nil, nil, errors.New("resource retrieval error")
 	}
 
-	project.Instances = append(project.Instances, model.Instance{
-		Name:         instance.Name,
-		InstanceType: instance.InstanceType,
-		Request:      instance.Request,
-	})
+	repo := vars.RepositoryFactory.GetRepositoryService()
+	instances, err := repo.GetInstances(ctx, project.Id)
+
+	// project.Instances = append(project.Instances, model.Instance{
+	// 	Name:         instance.Name,
+	// 	InstanceType: instance.InstanceType,
+	// 	Request:      instance.Request,
+	// })
 
 	fileTemplate := helper.GetProjectTemplate()
 	projectSpec := model.ProjectSpec{
 		Namespace:    project.Name,
-		InstancesMap: utils.MarshalObject(project.Instances),
+		InstancesMap: utils.MarshalObject(instances),
 		Labels:       helper.CreateProjectLabels(project),
 	}
 
@@ -259,7 +263,7 @@ func (p ProjectResourceManager) CreateRotationResource(ctx context.Context, proj
 	return instanceManager.CreateRotationResource(ctx, project, instance)
 }
 
-func (p ProjectResourceManager) CreateDeleteResource(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance, resources []model.KubernetesResource) ([]model.KubernetesResource, []unstructured.Unstructured, error) {
+func (p ProjectResourceManager) CreateDeleteResource(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance) ([]model.KubernetesResource, []unstructured.Unstructured, error) {
 
 	var log = logger.GetServiceLogger(ctx, "project.CreateDeleteResource")
 	defer func() { logger.LogServiceTime(log) }()
@@ -269,11 +273,14 @@ func (p ProjectResourceManager) CreateDeleteResource(ctx context.Context, projIn
 		return nil, nil, errors.New("resource retrieval error")
 	}
 
-	project.Instances = append(project.Instances, *instance)
-	for index, inst := range project.Instances {
+	repo := vars.RepositoryFactory.GetRepositoryService()
+	instances, err := repo.GetInstances(ctx, project.Id)
+
+	instances = append(instances, *instance)
+	for index, inst := range instances {
 		if inst.Name == instance.Name && inst.InstanceType == instance.InstanceType {
 			log.WithFields(logrus.Fields{"instance": instance.Name}).Infof("removed from project instance list")
-			project.Instances = append(project.Instances[:index], project.Instances[index+1:]...)
+			instances = append(instances[:index], instances[index+1:]...)
 			break
 		}
 	}
@@ -281,7 +288,7 @@ func (p ProjectResourceManager) CreateDeleteResource(ctx context.Context, projIn
 	fileTemplate := helper.GetProjectTemplate()
 	projectSpec := model.ProjectSpec{
 		Namespace:    project.Name,
-		InstancesMap: utils.MarshalObject(project.Instances),
+		InstancesMap: utils.MarshalObject(instances),
 		Labels:       helper.CreateProjectLabels(project),
 	}
 
@@ -296,7 +303,7 @@ func (p ProjectResourceManager) CreateDeleteResource(ctx context.Context, projIn
 		log.WithFields(logrus.Fields{"error": err}).Errorf("failed to create instance list template")
 	}
 
-	delResources, newiResources, err := instanceManager.CreateDeleteResource(ctx, projIngress, project, instance, resources)
+	delResources, newiResources, err := instanceManager.CreateDeleteResource(ctx, projIngress, project, instance)
 	if err != nil {
 		log.WithFields(logrus.Fields{"error": err}).Errorf("failed to create resources to delete")
 		return nil, nil, err
