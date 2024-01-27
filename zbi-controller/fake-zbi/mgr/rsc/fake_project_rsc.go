@@ -2,6 +2,7 @@ package rsc
 
 import (
 	"context"
+
 	"github.com/zbitech/controller/pkg/interfaces"
 	"github.com/zbitech/controller/pkg/model"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -19,7 +20,7 @@ type FakeProjectResourceManager struct {
 	FakeCreateSnapshotResource         func(ctx context.Context, project *model.Project, instance *model.Instance) ([]unstructured.Unstructured, error)
 	FakeCreateSnapshotScheduleResource func(ctx context.Context, project *model.Project, instance *model.Instance, schedule model.SnapshotScheduleType) ([]unstructured.Unstructured, error)
 	FakeCreateRotationResource         func(ctx context.Context, project *model.Project, instance *model.Instance) ([]unstructured.Unstructured, error)
-	FakeCreateDeleteResource           func(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance, resources []model.KubernetesResource) ([]model.KubernetesResource, []unstructured.Unstructured, error)
+	FakeCreateDeleteResource           func(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance) ([]model.KubernetesResource, []unstructured.Unstructured, error)
 }
 
 func NewFakeProjectResourceManager() interfaces.ProjectResourceManagerIF {
@@ -70,6 +71,6 @@ func (f FakeProjectResourceManager) CreateRotationResource(ctx context.Context, 
 	return f.FakeCreateRotationResource(ctx, project, instance)
 }
 
-func (f FakeProjectResourceManager) CreateDeleteResource(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance, resources []model.KubernetesResource) ([]model.KubernetesResource, []unstructured.Unstructured, error) {
-	return f.FakeCreateDeleteResource(ctx, projIngress, project, instance, resources)
+func (f FakeProjectResourceManager) CreateDeleteResource(ctx context.Context, projIngress *unstructured.Unstructured, project *model.Project, instance *model.Instance) ([]model.KubernetesResource, []unstructured.Unstructured, error) {
+	return f.FakeCreateDeleteResource(ctx, projIngress, project, instance)
 }

@@ -2,6 +2,7 @@ package klient
 
 import (
 	"context"
+
 	klient "github.com/zbitech/controller/fake-zbi/klient/k8s-client"
 	zklient "github.com/zbitech/controller/fake-zbi/klient/zbi-klient"
 	"github.com/zbitech/controller/pkg/interfaces"
@@ -36,10 +37,10 @@ func (k *FakeKlientFactory) GetZBIClient() interfaces.ZBIClientIF {
 	return k.client
 }
 
-func (k *FakeKlientFactory) StartMonitor() {
+func (k *FakeKlientFactory) StartMonitor(ctx context.Context) {
 	k.rscMon.Start()
 }
 
-func (k *FakeKlientFactory) StopMonitor() {
+func (k *FakeKlientFactory) StopMonitor(ctx context.Context) {
 	k.rscMon.Stop()
 }
