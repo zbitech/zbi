@@ -64,7 +64,7 @@ func (k *KlientInformer) GetIndexer() cache.Indexer {
 
 func NewKlientMonitor(ctx context.Context, clientSvc interfaces.KlientIF, repoSvc interfaces.RepositoryServiceIF) interfaces.KlientMonitorIF {
 
-	resync := time.Duration(helper.GetPolicyInfo().InformerResync)
+	resync := time.Duration(helper.GetPolicyInfo(ctx).InformerResync)
 
 	return &KlientMonitor{
 		typedFactory:   informers.NewSharedInformerFactoryWithOptions(clientSvc.GetKubernetesClient(), time.Second*resync),
@@ -345,22 +345,20 @@ func (k *KlientMonitor) processNextItem(ctx context.Context) bool {
 
 func (k *KlientMonitor) UpdateResourceStatus(ctx context.Context, id, level string, resource *model.KubernetesResource) {
 
-	if helper.GetPolicyInfo().EnableRepository {
-		log := logger.GetServiceLogger(ctx, "monitor.UpdateProjectResource")
-		repoService := vars.RepositoryFactory.GetRepositoryService()
+	log := logger.GetServiceLogger(ctx, "monitor.UpdateProjectResource")
+	repoService := vars.RepositoryFactory.GetRepositoryService()
 
-		if level == "instance" {
-			log.Infof("updating instance %s resource %s (%s) status - %s", id, resource.Name, resource.Type, resource.Status)
+	if level == "instance" {
+		log.Infof("updating instance %s resource %s (%s) status - %s", id, resource.Name, resource.Type, resource.Status)
 
-			if err := repoService.UpdateInstanceResource(ctx, id, resource); err != nil {
-				log.Errorf("unable to update instance %s resource %s (%s) - %s", id, resource.Name, resource.Type, err)
-			}
+		if err := repoService.UpdateInstanceResource(ctx, id, resource); err != nil {
+			log.Errorf("unable to update instance %s resource %s (%s) - %s", id, resource.Name, resource.Type, err)
+		}
 
-		} else if level == "project" {
-			log.Infof("updating project %s resource %s (%s) status - %s", id, resource.Name, resource.Type, resource.Status)
-			if err := repoService.UpdateProjectResource(ctx, id, resource); err != nil {
-				log.Errorf("unable to update project %s resource %s (%s) - %s", id, resource.Name, resource.Type, err)
-			}
+	} else if level == "project" {
+		log.Infof("updating project %s resource %s (%s) status - %s", id, resource.Name, resource.Type, resource.Status)
+		if err := repoService.UpdateProjectResource(ctx, id, resource); err != nil {
+			log.Errorf("unable to update project %s resource %s (%s) - %s", id, resource.Name, resource.Type, err)
 		}
 	}
 }

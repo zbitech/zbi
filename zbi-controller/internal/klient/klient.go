@@ -35,7 +35,7 @@ func (k *KlientFactory) Init(ctx context.Context, repoSvc interfaces.RepositoryS
 	log.Infof("creating zbi client")
 	k.client = zbi.NewZBIClient(clientSvc)
 
-	if helper.GetPolicyInfo().EnableMonitor {
+	if helper.GetPolicyInfo(ctx).EnableMonitor {
 		k.rscMon = monitor.NewKlientMonitor(ctx, clientSvc, repoSvc)
 		rtypes := []model.ResourceObjectType{model.ResourceNamespace, model.ResourceConfigMap, model.ResourceSecret, model.ResourceDeployment,
 			model.ResourceService, model.ResourcePersistentVolumeClaim, model.ResourceVolumeSnapshot, model.ResourceSnapshotSchedule,
@@ -54,14 +54,14 @@ func (k *KlientFactory) GetZBIClient() interfaces.ZBIClientIF {
 	return k.client
 }
 
-func (k *KlientFactory) StartMonitor() {
-	if helper.GetPolicyInfo().EnableMonitor {
+func (k *KlientFactory) StartMonitor(ctx context.Context) {
+	if helper.GetPolicyInfo(ctx).EnableMonitor {
 		k.rscMon.Start()
 	}
 }
 
-func (k *KlientFactory) StopMonitor() {
-	if helper.GetPolicyInfo().EnableMonitor {
+func (k *KlientFactory) StopMonitor(ctx context.Context) {
+	if helper.GetPolicyInfo(ctx).EnableMonitor {
 		k.rscMon.Stop()
 	}
 }
