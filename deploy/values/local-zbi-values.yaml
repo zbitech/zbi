@@ -1,0 +1,31 @@
+domain: zbitech.local
+
+certificate:
+  duration: 8760h
+  renewBefore: 730h
+  issuer:
+    kind: ClusterIssuer
+    name: cert-issuer
+
+externalDNS:
+  enabled: false
+
+controller:
+  enabled: true
+  logLevel: "0"
+  image:
+    repository: jakinyele/zbi-controller
+    pullPolicy: IfNotPresent
+    tag: latest
+
+database:
+  enabled: true
+  image:
+    repository: jakinyele/zbi-db
+    pullPolicy: IfNotPresent
+    tag: latest
+
+  data:
+    users:
+    - email: "alphegasolutions@gmail.com"
+      role: "admin"
